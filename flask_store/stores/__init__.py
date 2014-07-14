@@ -15,7 +15,9 @@ from werkzeug.utils import secure_filename
 
 
 class BaseStore(object):
-    """ Base file storage class all storage backends should inherit from.
+    """ Base file storage class all storage providers should inherit from. This
+    class provides some of the base functionality for all providers. Override
+    as required.
     """
 
     def __init__(self, file, destination=None):
