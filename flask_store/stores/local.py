@@ -4,16 +4,14 @@
 flask_store.stores.local
 ========================
 
-Local file store.
+Local file storage for your Flask application.
 
-Example
--------
 Example
 -------
 .. sourcecode:: python
 
     from flask import Flask, request
-    from flask.ext.Store import Backend, Store
+    from flask.ext.store import Provider, Store
     from wtforms import Form
     from wtforms.fields import FileField
 
@@ -21,6 +19,9 @@ Example
         foo = FileField('foo')
 
     app = Flask(__app__)
+    app.config['STORE_ABSOLUTE_BASE_PATH'] = '/some/file/path'
+    app.config['STORE_RELATIVE_BASE_PATH'] = '/uploads'
+
     store = Store(app)
 
     @app,route('/upload')
@@ -28,50 +29,34 @@ Example
         form = FooForm()
         form.validate_on_submit()
 
-        backend = Backend()
-        backend.save(form.files.get('foo'))
+        if not form.errors:
+            store = Provider(request.files.get('foo'))
+            store.save()
 
 """
 
 import os
 
-from flask import current_app as app
 from flask_store.stores import BaseStore
-from werkzeug.utils import secure_filename
 
 
 class LocalStore(BaseStore):
 
-    def __init__(self):
-        self.root_path = app.config.get(
-            'STORE_BASE_PATH')
-        self.relative_path = app.config.get(
-            'STORE_RELATIVE_PATH')
+    def save(self):
+        """ Save the file on the local file system. Simply builds the paths
+        and calls :meth:`werkzeug.datastructures.FileStorage.save` on the
+        file object.
 
-    def save(self, file):
-        """ Save the file on the local file system.
-
-        Arguments
-        ---------
-        werkzeug_file : werkzeug.datastructures.FileStorage
-            The raw data of the file
-
-        Keyword Arguments
-        -----------------
-        to : str, optional
-            The destination directory where the file should live, this
-            is a relative file path, not the absolute path, default ``None``
+        Returns
+        -------
+        str
+            Relative path to file
         """
 
-        relative_path = os.path.join(
-            self.relative_path,
-            secure_filename(file.filename))
-        dir_path = os.path.join(self.root_path, self.relative_path)
-        full_path = os.path.join(self.root_path, relative_path)
+        if not os.path.isdir(self.absolute_dir_path):
+            raise IOError('{0} is not a directory'.format(
+                self.absolute_dir_path))
 
-        if not os.path.isdir(dir_path):
-            raise Exception('Not a directory')
+        self.file.save(self.absolute_file_path)
 
-        file.save(full_path)
-
-        return relative_path
+        return self.relative_file_path

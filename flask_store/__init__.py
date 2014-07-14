@@ -4,89 +4,127 @@
 flask_store
 ===========
 
-Flask-Store extension can be created from here using the standard Flask
-extension convention.
+Adds simple file handling for different providers to your application. Provides
+the following providers out of the box:
 
-Example
--------
-.. sourcecode:: python
-
-    >>> from flask import Flask
-    >>> from flask.ext.store import Store
-    >>> app = Flask(__name__)
-    >>> store = Store(app)
-
-    # Or
-
-    >>> from flask import Flask
-    >>> from flask.ext.store import Store
-    >>> app = Flask(__name__)
-    >>> store = Store()
-    >>> store.init_app(app)
+* Local file storeage
+* Amazon Simple File Storage (requires ``boto`` to be installed)
 """
 
-from importlib import import_module
+import os
+
 from flask import current_app
+from importlib import import_module
 from werkzeug import LocalProxy
 
 
-CONFIG_REQUIRED = [
-    'STORE_BASE_PATH',
-    'STORE_RELATIVE_PATH']
+DEFAULT_PROVIDER = 'flask_store.stores.local.LocalStore'
+Provider = LocalProxy(lambda: provider())
 
 
-Backend = LocalProxy(lambda: get_store_backend())
+def provider():
+    """ Returns the default provider class as defined in the application
+    configuration.
+
+    Returns
+    -------
+    class
+        The provider class
+    """
+
+    store = current_app.extensions['store']
+    return store.store.Provider
 
 
-def get_store_backend():
-    if not hasattr(current_app, 'store_default_backend'):
-        raise NotImplementedError(
-            'You must instantiate Flask-Store when creating your application')
+class StoreState(object):
+    """ Stores the state of Flask-Store from application init.
+    """
 
-    return getattr(current_app, 'store_default_backend')
+    def __init__(self, store, app):
+        self.store = store
+        self.app = app
 
 
 class Store(object):
+    """ Flask-Store integration into Flask applications. Flask-Store can
+    be integrated in two different ways depending on how you have setup your
+    Flask application.
+
+    You can bind to a specific flask application::
+
+        app = Flask(__name__)
+        store = Store(app)
+
+    Or if you use an application factory you can use
+    :meth:`flask_store.Store.init_app`::
+
+        store = Store()
+        def create_app():
+            app = Flask(__name__)
+            store.init_app(app)
+            return app
+    """
 
     def __init__(self, app=None):
+        """ Constructor. Basically acts as a proxy to
+        :meth:`flask_store.Store.init_app`.
+
+        Key Arguments
+        -------------
+        app : flask.app.Flask, optional
+            Optional Flask application instance, default None
+        """
+
         if app:
-            self.app = app
-            self.construct()
+            self.init_app(app)
 
     def init_app(self, app):
-        self.app = app
-        self.construct()
+        """ Sets up application default confugration options and sets a
+        ``Provider`` property which can be used to access the default
+        provider class which handles the saving of files.
 
-    def construct(self):
-        self.validate_configuration()
-        default_store = self.app.config.get(
-            'STORE_DEFAULT_BACKEND',
-            'flask_store.stores.local.LocalStore')
+        Arguments
+        ---------
+        app : flask.app.Flask
+            Flask application instance
+        """
 
-        parts = default_store.split('.')
-        kls_name = parts.pop()
-        module_path = '.'.join(parts)
+        app.config.setdefault('STORE_DEFAULT_PROVIDER', DEFAULT_PROVIDER)
+        app.config.setdefault('STORE_ABSOLUTE_BASE_PATH', os.path.sep)
+        app.config.setdefault('STORE_RELATIVE_BASE_PATH', os.path.sep)
 
-        module = import_module(module_path)
-        if not getattr(module, kls_name):
-            raise ImportError('{0} class not found in {1}'.format(
-                kls_name,
-                module_path))
+        if not hasattr(app, 'extensions'):
+            app.extensions = {}
+        app.extensions['store'] = StoreState(self, app)
 
-        self.app.store_default_backend = getattr(module, kls_name)
+        self.Provider = self.provider(app)
 
-    def validate_configuration(self):
-        """ Validate the Flask Application Configuration to ensure that
-        the user has configured the required settings.
+    def provider(self, app):
+        """ Fetches the provider class as defined by the application
+        configuration.
 
         Raises
         ------
-        NotImplementedError
-            In the event a required configuration option is missing
+        ImportError
+            If the class or module cannot be imported
+
+        Returns
+        -------
+        class
+            The provider class
         """
 
-        for name in CONFIG_REQUIRED:
-            if name not in self.app.config:
-                raise NotImplementedError(
-                    '{0} must be set in your Flask Application '
-                    'Configuration'.format(name))
+        if not hasattr(self, '_provider'):
+            parts = app.config['STORE_DEFAULT_PROVIDER'].split('.')
+            klass = parts.pop()
+            path = '.'.join(parts)
+
+            module = import_module(path)
+            if not hasattr(module, klass):
+                raise ImportError('{0} provider not found at {1}'.format(
+                    klass,
+                    path))
+
+            self._provider = getattr(module, klass)
+
+        return getattr(self, '_provider')
