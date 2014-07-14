@@ -56,6 +56,8 @@ class S3Store(BaseStore):
         """ Initiates connection to AWS S3 and gets the bucket.
         """
 
+        super(S3Store, self).__init__(*args, **kwargs)
+
         aws_s3_region = current_app.config.get('STORE_AWS_S3_REGION')
         aws_access_key_id = current_app.config.get('STORE_AWS_ACCESS_KEY')
         aws_secret_access_key = current_app.config.get('STORE_AWS_SECRET_KEY')
@@ -67,8 +69,6 @@ class S3Store(BaseStore):
             aws_secret_access_key=aws_secret_access_key)
 
         self.bucket = self.s3_connection.get_bucket(aws_bucket_name)
-
-        super(S3Store, self).__init__(*args, **kwargs)
 
     def exists(self, name):
         """ Checks if the file already exists in the bucket using Boto.
