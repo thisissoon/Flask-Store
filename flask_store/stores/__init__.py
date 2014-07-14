@@ -146,12 +146,30 @@ class BaseStore(object):
         return os.path.join(self.relative_dir_path(), self.filename)
 
     def exists(self):
+        """ Placeholder "exists" method. This should be overridden by custom
+        providers and return a ``boolean`` depending on if the file exists
+        of not for the provider.
+
+        Raises
+        ------
+        NotImplementedError
+            If the "exists" method has not been implemented
+        """
+
         raise NotImplementedError(
             'You must define an "exists" method in the {0} provider.'.format(
                 self.__class__.__name__))
 
     def save(self):
-        pass
+        """ Placeholder "sabe" method. This should be overridden by custom
+        providers and save the file object to the provider.
 
-    def delete(self):
-        pass
+        Raises
+        ------
+        NotImplementedError
+            If the "save" method has not been implemented
+        """
+
+        raise NotImplementedError(
+            'You must define an "save" method in the {0} provider.'.format(
+                self.__class__.__name__))
