@@ -8,6 +8,7 @@ Base store functionality and classes.
 """
 
 import os
+import time
 
 from flask import current_app
 from werkzeug.utils import secure_filename
@@ -57,16 +58,30 @@ class BaseStore(object):
 
     @property
     def filename(self):
-        """ Returns the secure filename of the file object.
+        """ If the file already exists the file will be renamed to contain a
+        timestamp of when the file was created. This will avoid overwtites.
 
         Returns
+        -------
         str
-            Secure filename
+            A safe filenaem to use when writting the file
         """
 
-        return secure_filename(self.file.filename)
+        if not hasattr(self, '_filename'):
+            filename = self.file.filename
+            while self.exists(filename):
+                dir_name, file_name = os.path.split(filename)
+                file_root, file_ext = os.path.splitext(file_name)
+                timestamp = int(time.time())
+                filename = secure_filename('{0}_{1}{2}'.format(
+                    file_root,
+                    timestamp,
+                    file_ext))
 
-    @property
+            setattr(self, '_filename', filename)
+
+        return getattr(self, '_filename')
+
     def absolute_dir_path(self):
         """ Returns the absolute path to the destination directory, this does
         not include the filename.
@@ -83,9 +98,13 @@ class BaseStore(object):
 
         return os.path.join(*parts)
 
-    @property
-    def absolute_file_path(self):
-        """ Returns the fulll absolute path to the file.
+    def absolute_file_path(self, filename=None):
+        """ Returns the fulll absolute path to a file.
+
+        Keyword Arguments
+        -----------------
+        name : str, optional
+            Optional file name to join with the absolure directory path
 
         Returns
         -------
@@ -93,10 +112,12 @@ class BaseStore(object):
             Absolute path to the file
         """
 
-        return os.path.join(self.absolute_dir_path, self.filename)
+        if not filename:
+            filename = self.filename
 
-    @property
-    def relative_dir_path(self, destination=None):
+        return os.path.join(self.absolute_dir_path(), filename)
+
+    def relative_dir_path(self):
         """ Returns the full relative directory path, this does not include the
         file name.
 
@@ -107,12 +128,11 @@ class BaseStore(object):
         """
 
         parts = [self.relative_base_path, ]
-        if destination:
+        if self.destination:
             parts.append(self.destination)
 
         return os.path.join(*parts)
 
-    @property
     def relative_file_path(self):
         """ Returns the full relative path to the file to be stored in some
         sort of database.
@@ -123,13 +143,15 @@ class BaseStore(object):
             Full **relative** path to file
         """
 
-        return os.path.join(self.relative_dir_path, self.filename)
+        return os.path.join(self.relative_dir_path(), self.filename)
+
+    def exists(self):
+        raise NotImplementedError(
+            'You must define an "exists" method in the {0} provider.'.format(
+                self.__class__.__name__))
 
     def save(self):
         pass
 
     def delete(self):
-        pass
-
-    def exists(self):
         pass

@@ -35,12 +35,30 @@ Example
 
 """
 
+import errno
 import os
 
 from flask_store.stores import BaseStore
 
 
 class LocalStore(BaseStore):
+
+    def exists(self, name):
+        """ Returns boolean of the provided filename exists at the compiled
+        absolute path.
+
+        Arguments
+        ---------
+        name : str
+            Filename to check its existence
+
+        Returns
+        -------
+        bool
+            Whether the file exists on the file system
+        """
+
+        return os.path.exists(self.absolute_file_path(name))
 
     def save(self):
         """ Save the file on the local file system. Simply builds the paths
@@ -53,10 +71,19 @@ class LocalStore(BaseStore):
             Relative path to file
         """
 
-        if not os.path.isdir(self.absolute_dir_path):
-            raise IOError('{0} is not a directory'.format(
-                self.absolute_dir_path))
+        absolute_path = self.absolute_dir_path
+        directory = os.path.dirname(absolute_path)
 
-        self.file.save(self.absolute_file_path)
+        if not os.path.exists(directory):
+            # Taken from Django - Race condition between os.path.exists and
+            # os.mkdirs
+            try:
+                os.makedirs(directory)
+            except OSError as e:
+                if e.errno != errno.EEXIST:
+                    raise
 
-        return self.relative_file_path
+        if not os.path.isdir(directory):
+            raise IOError('{0} is not a directory'.format(directory))
+
+        self.file.save(absolute_path)
