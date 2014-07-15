@@ -143,7 +143,7 @@ class S3Store(BaseStore):
         return self.relative_file_path()
 
 
-class S3GreenStore(S3Store):
+class S3GeventStore(S3Store):
     """ A Gevent Support version of :class:`.S3Store`. Calling :meth:`.save`
     here will spawn a greenlet which will handle the actual upload process.
     """
@@ -161,7 +161,7 @@ class S3GreenStore(S3Store):
 
         @copy_current_request_context
         def _save():
-            super(S3GreenStore, self).save()
+            super(S3GeventStore, self).save()
 
         gevent.spawn(_save)
 
