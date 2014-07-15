@@ -19,10 +19,10 @@ from werkzeug import LocalProxy
 
 
 DEFAULT_PROVIDER = 'flask_store.stores.local.LocalStore'
-Provider = LocalProxy(lambda: provider())
+StoreProvider = LocalProxy(lambda: store_provider())
 
 
-def provider():
+def store_provider():
     """ Returns the default provider class as defined in the application
     configuration.
 
