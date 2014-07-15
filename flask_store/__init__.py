@@ -14,6 +14,7 @@ the following providers out of the box:
 import os
 
 from flask import current_app
+from flask_store.exceptions import NotConfiguredError
 from importlib import import_module
 from werkzeug import LocalProxy
 
@@ -98,10 +99,39 @@ class Store(object):
         app.extensions['store'] = StoreState(self, app)
 
         self.Provider = self.provider(app)
+        self.check_config(app)
+
+    def check_config(self, app):
+        """ Checks the required application configuration variables are set
+        in the flask application.
+
+        Arguments
+        ---------
+        app : flask.app.Flask
+            Flask application instance
+
+        Raises
+        ------
+        NotConfiguredError
+            In the event a required config parameter is required by the
+            Store.
+        """
+
+        if hasattr(self.Provider, 'REQUIRED_CONFIGURATION'):
+            for name in self.Provider.REQUIRED_CONFIGURATION:
+                if not app.config.get(name):
+                    raise NotConfiguredError(
+                        '{0} must be configured in your flask application '
+                        'configuration'.format(name))
 
     def provider(self, app):
         """ Fetches the provider class as defined by the application
         configuration.
+
+        Arguments
+        ---------
+        app : flask.app.Flask
+            Flask application instance
 
         Raises
         ------
