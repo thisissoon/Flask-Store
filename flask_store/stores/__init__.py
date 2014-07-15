@@ -8,6 +8,7 @@ Base store functionality and classes.
 """
 
 import os
+import tempfile
 import time
 
 from flask import current_app
@@ -20,7 +21,7 @@ class BaseStore(object):
     as required.
     """
 
-    def __init__(self, file, destination=None):
+    def __init__(self, file_storage, destination=None):
         """ Constructor. When extending this class do not forget to call
         ``super``.
 
@@ -29,9 +30,8 @@ class BaseStore(object):
 
         Arguments
         ---------
-        file : werkzeug.datastructures.FileStorage
-            The uploaded file object which is part of the request, this could
-            also take a file like object.
+        file_storage : werkzeug.datastructures.FileStorage
+            The flask request file storage object
 
         Keyword Arguments
         -----------------
@@ -50,16 +50,36 @@ class BaseStore(object):
         relative_base_path = current_app.config['STORE_RELATIVE_BASE_PATH']
         if relative_base_path.startswith(os.path.sep):
             relative_base_path = relative_base_path[1:]
+
+        # Append the destination to the base relative path
+        if destination:
+            if destination.startswith(os.path.sep):
+                destination = destination[1:]
+            relative_base_path = os.path.join(relative_base_path, destination)
+
+        # Save the relative base path
         self.relative_base_path = relative_base_path
 
-        # Store the file object on the instance
-        self.file = file
+        # Save the origional filename
+        self.filename = file_storage.filename
 
-        # Store the destination on the instance
-        self.destination = destination
+        # Write the file to a temporary location on disk - this should be
+        # cleaned up later - this allows us to upload the file even after the
+        # request has finished so this could be co-routined with Gevent.
+        with tempfile.NamedTemporaryFile(delete=False) as temp:
+            temp.writelines(file_storage.stream)
+            temp.flush()
+
+        self.temp_file_path = temp.name
+
+    def __exit__(self, type, value, traceback):
+        """ Cleanup, deletes the temporary file from the file system.
+        """
+
+        os.unlink(self.temp_file_path)
 
     @property
-    def filename(self):
+    def safe_filename(self):
         """ If the file already exists the file will be renamed to contain a
         timestamp of when the file was created. This will avoid overwtites.
 
@@ -69,8 +89,8 @@ class BaseStore(object):
             A safe filenaem to use when writting the file
         """
 
-        if not hasattr(self, '_filename'):
-            filename = self.file.filename
+        if not hasattr(self, '_safe_filename'):
+            filename = self.filename
             while self.exists(filename):
                 dir_name, file_name = os.path.split(filename)
                 file_root, file_ext = os.path.splitext(file_name)
@@ -80,9 +100,9 @@ class BaseStore(object):
                     timestamp,
                     file_ext))
 
-            setattr(self, '_filename', filename)
+            setattr(self, '_safe_filename', filename)
 
-        return getattr(self, '_filename')
+        return getattr(self, '_safe_filename')
 
     def absolute_dir_path(self):
         """ Returns the absolute path to the destination directory, this does
@@ -94,19 +114,10 @@ class BaseStore(object):
             Full **absolute** directory path.
         """
 
-        parts = [self.absolute_base_path, self.relative_base_path, ]
-        if not self.destination:
-            parts.append(self.destination)
+        return os.path.join(self.absolute_base_path, self.relative_base_path)
 
-        return os.path.join(*parts)
-
-    def absolute_file_path(self, filename=None):
+    def absolute_file_path(self, name=None):
         """ Returns the fulll absolute path to a file.
-
-        Keyword Arguments
-        -----------------
-        name : str, optional
-            Optional file name to join with the absolure directory path
 
         Returns
         -------
@@ -114,8 +125,10 @@ class BaseStore(object):
             Absolute path to the file
         """
 
-        if not filename:
-            filename = self.filename
+        if name:
+            filename = name
+        else:
+            filename = self.safe_filename
 
         return os.path.join(self.absolute_dir_path(), filename)
 
@@ -129,11 +142,7 @@ class BaseStore(object):
             Full **relative** directory path.
         """
 
-        parts = [self.relative_base_path, ]
-        if self.destination:
-            parts.append(self.destination)
-
-        return os.path.join(*parts)
+        return self.relative_base_path
 
     def relative_file_path(self):
         """ Returns the full relative path to the file to be stored in some
@@ -145,7 +154,13 @@ class BaseStore(object):
             Full **relative** path to file
         """
 
-        return os.path.join(self.relative_dir_path(), self.filename)
+        return os.path.join(self.relative_dir_path(), self.safe_filename)
+
+    def open_temp_file(self):
+        """ Opens the temporary file.
+        """
+
+        return open(self.temp_file_path, 'rb')
 
     def exists(self):
         """ Placeholder "exists" method. This should be overridden by custom

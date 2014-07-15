@@ -34,13 +34,25 @@ Example
         backend.save(form.files.get('foo'))
 """
 
+import warnings
+
+try:
+    import gevent.monkey
+    gevent.monkey.patch_all()
+except ImportError:
+    warnings.warn('Gevent is not installed, you will not be able to use the '
+                  'S3GreenStore')
+
+import mimetypes
+import os
+
 try:
     import boto
 except ImportError:
-    raise ImportError('boto must be installed to use the S3Store')
+    raise ImportError('boto must be installed to use the S3Store/S3GreenStore')
 
 
-from flask import current_app
+from flask import copy_current_request_context, current_app
 from flask_store.stores import BaseStore
 
 
@@ -58,17 +70,29 @@ class S3Store(BaseStore):
 
         super(S3Store, self).__init__(*args, **kwargs)
 
-        aws_s3_region = current_app.config.get('STORE_AWS_S3_REGION')
-        aws_access_key_id = current_app.config.get('STORE_AWS_ACCESS_KEY')
-        aws_secret_access_key = current_app.config.get('STORE_AWS_SECRET_KEY')
-        aws_bucket_name = current_app.config.get('STORE_AWS_S3_BUCKET')
+        self.aws_s3_region = current_app.config.get('STORE_AWS_S3_REGION')
+        self.aws_access_key_id = current_app.config.get('STORE_AWS_ACCESS_KEY')
+        self.aws_secret_access_key = \
+            current_app.config.get('STORE_AWS_SECRET_KEY')
+        self.aws_bucket_name = current_app.config.get('STORE_AWS_S3_BUCKET')
 
-        self.s3_connection = boto.s3.connect_to_region(
-            aws_s3_region,
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key)
+    def connect(self):
+        """ Returns an S3 connection instance.
+        """
 
-        self.bucket = self.s3_connection.get_bucket(aws_bucket_name)
+        if not hasattr(self, '_s3connection'):
+            s3connection = boto.s3.connect_to_region(
+                self.aws_s3_region,
+                aws_access_key_id=self.aws_access_key_id,
+                aws_secret_access_key=self.aws_secret_access_key)
+            setattr(self, '_s3connection', s3connection)
+        return getattr(self, '_s3connection')
+
+    def bucket(self, s3connection):
+        """ Returns an S3 bucket instance
+        """
+
+        return s3connection.get_bucket(self.aws_bucket_name)
 
     def exists(self, name):
         """ Checks if the file already exists in the bucket using Boto.
@@ -84,9 +108,12 @@ class S3Store(BaseStore):
             Whether the file exists on the file system
         """
 
+        s3connection = self.connect()
+        bucket = self.bucket(s3connection)
+
         key = boto.s3.key.Key(
             name=self.absolute_file_path(name),
-            bucket=self.bucket)
+            bucket=bucket)
 
         return key.exists()
 
@@ -99,10 +126,43 @@ class S3Store(BaseStore):
             Relative path to file
         """
 
-        key = self.bucket.new_key(self.absolute_file_path())
-        key.set_metadata('Content-Type', self.file.mimetype)
+        s3connection = self.connect()
+        bucket = self.bucket(s3connection)
+        temp_file = self.open_temp_file()
 
-        self.file.seek(0)
+        key = bucket.new_key(self.absolute_file_path())
+        key.set_contents_from_file(temp_file)
 
-        key.set_contents_from_file(self.file)
+        mimetype, encoding = mimetypes.guess_type(self.filename)
+        key.set_metadata('Content-Type', mimetype)
         key.set_acl('public-read')
+
+        temp_file.close()
+        os.unlink(self.temp_file_path)
+
+        return self.relative_file_path()
+
+
+class S3GreenStore(S3Store):
+    """ A Gevent Support version of :class:`.S3Store`. Calling :meth:`.save`
+    here will spawn a greenlet which will handle the actual upload process.
+    """
+
+    def save(self):
+        """ Acts as a proxy to the actual save method in the parent class. The
+        save method will be called in a ``greenlet`` so ``gevent`` must be
+        installed.
+
+        Returns
+        -------
+        str
+            Relative path to file
+        """
+
+        @copy_current_request_context
+        def _save():
+            super(S3GreenStore, self).save()
+
+        gevent.spawn(_save)
+
+        return self.relative_file_path()

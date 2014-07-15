@@ -71,8 +71,9 @@ class LocalStore(BaseStore):
             Relative path to file
         """
 
-        absolute_path = self.absolute_dir_path
-        directory = os.path.dirname(absolute_path)
+        temp_file = self.open_temp_file()
+        absolute_file_path = self.absolute_file_path()
+        directory = os.path.dirname(absolute_file_path)
 
         if not os.path.exists(directory):
             # Taken from Django - Race condition between os.path.exists and
@@ -86,4 +87,11 @@ class LocalStore(BaseStore):
         if not os.path.isdir(directory):
             raise IOError('{0} is not a directory'.format(directory))
 
-        self.file.save(absolute_path)
+        with open(absolute_file_path, 'a') as handle:
+            handle.writelines(temp_file.readlines())
+            handle.flush()
+
+        temp_file.close()
+        os.unlink(self.temp_file_path)
+
+        return self.relative_file_path()
