@@ -8,8 +8,7 @@ Base store functionality and classes.
 """
 
 import os
-import tempfile
-import time
+import shortuuid
 
 from flask import current_app
 from werkzeug.utils import secure_filename
@@ -69,10 +68,10 @@ class BaseStore(object):
         while self.exists(filename):
             dir_name, file_name = os.path.split(filename)
             file_root, file_ext = os.path.splitext(file_name)
-            timestamp = int(time.time())
+            uuid = shortuuid.uuid()
             filename = secure_filename('{0}_{1}{2}'.format(
                 file_root,
-                timestamp,
+                uuid,
                 file_ext))
 
         return filename
@@ -121,37 +120,3 @@ class BaseStore(object):
         raise NotImplementedError(
             'You must define an "save" method in the {0} provider.'.format(
                 self.__class__.__name__))
-
-
-class BaseGeventStore(BaseStore):
-    """
-    """
-
-    def open_temp_file(self):
-        """ Opens the temporary file.
-        """
-
-        return open(self.temp_file_path, 'rb')
-
-    def save_temp_file(self, filestorage):
-        """
-        """
-
-        # Save the origional filename
-        self.filename = filestorage.filename
-
-        # Write the file to a temporary location on disk - this should be
-        # cleaned up later - this allows us to upload the file even after the
-        # request has finished so this could be co-routined with Gevent.
-        with tempfile.NamedTemporaryFile(delete=False) as temp:
-            temp.writelines(filestorage.stream)
-            temp.flush()
-
-        # Save the path to the tempoary file
-        return temp.name
-
-    def save(self, filestoreage):
-        """
-        """
-
-        pass

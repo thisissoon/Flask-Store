@@ -54,11 +54,12 @@ def read_requirements(filename):
     requirements = []
 
     try:
-        with open(filename) as f:
+        with open(filename, 'rb') as f:
             for line in f.readlines():
-                if not line or line.startswith('#'):
+                line = line.strip()
+                if not line or line.startswith('#') or line == '':
                     continue
-                requirements.append(line.strip())
+                requirements.append(line)
     except IOError:
         warnings.warn('{0} was not found'.format(filename))
 
@@ -98,9 +99,9 @@ setup(
     author_email='dorks@thisissoon.com',
     maintainer='Chris Reeves',
     maintainer_email='hello@chris.reeves.io',
-    url='http://flask-via.soon.build',
-    description='Provides a clean, simple URL routing framework for '
-                'growing Flask Applications.',
+    url='http://flask-store.soon.build',
+    description='Provides Django-Storages like file storage backends for '
+                'Flask Applications.',
     long_description=long_description,
     packages=find_packages(
         exclude=[

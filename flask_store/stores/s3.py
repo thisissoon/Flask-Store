@@ -202,7 +202,7 @@ class S3Store(BaseStore):
 
 
 class S3GeventStore(S3Store):
-    """ A Gevent Support version of :class:`.S3Store`. Calling :meth:`.save`
+    """ A Gevent Support for :class:`.S3Store`. Calling :meth:`.save`
     here will spawn a greenlet which will handle the actual upload process.
     """
 
@@ -210,6 +210,11 @@ class S3GeventStore(S3Store):
         """ Acts as a proxy to the actual save method in the parent class. The
         save method will be called in a ``greenlet`` so ``gevent`` must be
         installed.
+
+        Since the origional request will close the file object we write the
+        file to a temporary location on disk and create a new
+        :class:`werkzeug.datastructures.FileStorage` instance with the stram
+        being the temporary file.
 
         Returns
         -------

@@ -1,0 +1,5 @@
+#
+# Flask-Store Requirements
+#
+
+shortuuid==0.1
