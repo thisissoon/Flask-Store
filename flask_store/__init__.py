@@ -11,9 +11,7 @@ the following providers out of the box:
 * Amazon Simple File Storage (requires ``boto`` to be installed)
 """
 
-import os
-
-from flask import current_app
+from flask import current_app, send_from_directory
 from flask_store.exceptions import NotConfiguredError
 from importlib import import_module
 from werkzeug import LocalProxy
@@ -91,8 +89,6 @@ class Store(object):
         """
 
         app.config.setdefault('STORE_DEFAULT_PROVIDER', DEFAULT_PROVIDER)
-        app.config.setdefault('STORE_ABSOLUTE_BASE_PATH', os.path.sep)
-        app.config.setdefault('STORE_RELATIVE_BASE_PATH', os.path.sep)
 
         if not hasattr(app, 'extensions'):
             app.extensions = {}
@@ -100,6 +96,7 @@ class Store(object):
 
         self.Provider = self.provider(app)
         self.check_config(app)
+        self.set_provider_defaults(app)
 
     def check_config(self, app):
         """ Checks the required application configuration variables are set
@@ -158,3 +155,37 @@ class Store(object):
             self._provider = getattr(module, klass)
 
         return getattr(self, '_provider')
+
+    def set_provider_defaults(self, app):
+        """ If the provider has a ``app_defaults`` static method then this
+        simply calls that method. This will set sensible application
+        configuration options for the provider.
+
+        Arguments
+        ---------
+        app : flask.app.Flask
+            Flask application instance
+        """
+
+        if hasattr(self.Provider, 'app_defaults'):
+            self.Provider.app_defaults(app)
+
+    def register_route(self, app):
+        """ Registers a default route for serving uploaded assets via
+        Flask-Store, this is based on the absolute and relative paths
+        defined in the app configuration.
+
+        Arguments
+        ---------
+        app : flask.app.Flask
+            Flask application instance
+        """
+
+        def serve(self, path):
+            return send_from_directory(
+                app.config['STORE_PATH'],
+                path)
+
+        # Only do this if the Provider says so
+        if self.Provider.register_route:
+            app.add_url_rule('', 'flask.store.file', serve)

@@ -19,8 +19,7 @@ Example
         foo = FileField('foo')
 
     app = Flask(__app__)
-    app.config['STORE_ABSOLUTE_BASE_PATH'] = '/some/file/path'
-    app.config['STORE_RELATIVE_BASE_PATH'] = '/uploads'
+    app.config['STORE_PATH'] = '/some/file/path'
 
     store = Store(app)
 
@@ -30,20 +29,60 @@ Example
         form.validate_on_submit()
 
         if not form.errors:
-            store = Provider(request.files.get('foo'))
-            store.save()
+            provider = store.Provider()
+            provider.save(request.files.get('foo'))
 
 """
 
 import errno
 import os
+import urlparse
 
+from flask import current_app
 from flask_store.stores import BaseStore
 
 
 class LocalStore(BaseStore):
 
-    def exists(self, name):
+    #: Ensure a route is registered for serving files
+    register_route = True
+
+    @staticmethod
+    def app_defaults(app):
+        """ Sets sensible application configuration settings for this
+        provider.
+
+        Arguments
+        ---------
+        app : flask.app.Flask
+            Flask application at init
+        """
+
+        app.config.setdefault('STORE_PATH', os.path.sep)
+        app.config.setdefault('STORE_URL', '/')
+
+    def url(self, filename):
+        """ Returns URL to the file, this maybe relative from the domain or
+        include the domain depending on how Flask-Store has been configured.
+
+        Arguments
+        ---------
+        filename : str
+            Name of the uploaded file
+
+        Returns
+        -------
+        str
+            The URL tot the file
+        """
+
+        base = current_app.config['STORE_URL']
+        if self.destination:
+            base = urlparse.urljoin(base, self.destination)
+
+        return urlparse.urljoin(base, filename)
+
+    def exists(self, filename):
         """ Returns boolean of the provided filename exists at the compiled
         absolute path.
 
@@ -58,22 +97,27 @@ class LocalStore(BaseStore):
             Whether the file exists on the file system
         """
 
-        return os.path.exists(self.absolute_file_path(name))
+        return os.path.exists(os.path.join(self.store_path, filename))
 
-    def save(self):
+    def save(self, file):
         """ Save the file on the local file system. Simply builds the paths
         and calls :meth:`werkzeug.datastructures.FileStorage.save` on the
         file object.
 
+        Arguments
+        ---------
+        file : werkzeug.datastructures.FileStorage
+            The file uploaded by the user
+
         Returns
         -------
         str
-            Relative path to file
+            URL to the file
         """
 
-        temp_file = self.open_temp_file()
-        absolute_file_path = self.absolute_file_path()
-        directory = os.path.dirname(absolute_file_path)
+        filename = self.safe_filename(file.filename)
+        absolute_path = self.store_file_path(filename)
+        directory = os.path.dirname(absolute_path)
 
         if not os.path.exists(directory):
             # Taken from Django - Race condition between os.path.exists and
@@ -87,11 +131,9 @@ class LocalStore(BaseStore):
         if not os.path.isdir(directory):
             raise IOError('{0} is not a directory'.format(directory))
 
-        with open(absolute_file_path, 'a') as handle:
-            handle.writelines(temp_file.readlines())
-            handle.flush()
+        # Save the file
+        file.save(absolute_path)
+        file.close()
 
-        temp_file.close()
-        os.unlink(self.temp_file_path)
-
-        return self.relative_file_path()
+        # Return the url to the file
+        return self.url(filename)

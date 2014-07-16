@@ -37,6 +37,12 @@ Example
 import warnings
 
 try:
+    import boto
+except ImportError:
+    raise ImportError('boto must be installed to use the S3Store/S3GreenStore')
+
+
+try:
     import gevent.monkey
     gevent.monkey.patch_all()
 except ImportError:
@@ -45,15 +51,12 @@ except ImportError:
 
 import mimetypes
 import os
-
-try:
-    import boto
-except ImportError:
-    raise ImportError('boto must be installed to use the S3Store/S3GreenStore')
-
+import urlparse
 
 from flask import copy_current_request_context, current_app
 from flask_store.stores import BaseStore
+from flask_store.stores.temp import TemporaryStore
+from werkzeug.datastructures import FileStorage
 
 
 class S3Store(BaseStore):
@@ -64,17 +67,18 @@ class S3Store(BaseStore):
         'STORE_AWS_S3_BUCKET',
         'STORE_AWS_S3_REGION']
 
-    def __init__(self, *args, **kwargs):
-        """ Initiates connection to AWS S3 and gets the bucket.
+    @staticmethod
+    def app_defaults(app):
+        """ Sets sensible application configuration settings for this
+        provider.
+
+        Arguments
+        ---------
+        app : flask.app.Flask
+            Flask application at init
         """
 
-        super(S3Store, self).__init__(*args, **kwargs)
-
-        self.aws_s3_region = current_app.config.get('STORE_AWS_S3_REGION')
-        self.aws_access_key_id = current_app.config.get('STORE_AWS_ACCESS_KEY')
-        self.aws_secret_access_key = \
-            current_app.config.get('STORE_AWS_SECRET_KEY')
-        self.aws_bucket_name = current_app.config.get('STORE_AWS_S3_BUCKET')
+        app.config.setdefault('STORE_AWS_S3_SECURE_URLS', True)
 
     def connect(self):
         """ Returns an S3 connection instance.
@@ -82,9 +86,9 @@ class S3Store(BaseStore):
 
         if not hasattr(self, '_s3connection'):
             s3connection = boto.s3.connect_to_region(
-                self.aws_s3_region,
-                aws_access_key_id=self.aws_access_key_id,
-                aws_secret_access_key=self.aws_secret_access_key)
+                current_app.config['STORE_AWS_S3_REGION'],
+                aws_access_key_id=current_app.config['STORE_AWS_ACCESS_KEY'],
+                aws_secret_access_key=current_app.config['STORE_AWS_SECRET_KEY'])
             setattr(self, '_s3connection', s3connection)
         return getattr(self, '_s3connection')
 
@@ -92,9 +96,53 @@ class S3Store(BaseStore):
         """ Returns an S3 bucket instance
         """
 
-        return s3connection.get_bucket(self.aws_bucket_name)
+        return s3connection.get_bucket(
+            current_app.config.get('STORE_AWS_S3_BUCKET'))
 
-    def exists(self, name):
+    def url(self, filename):
+        """ Generates the S3 url to the file.
+
+        Arguments
+        ---------
+        filename : str
+            Name of the file to generate the url for
+
+        Returns
+        -------
+        str
+            S3 bucket key path
+        """
+
+        bucket = current_app.config['STORE_AWS_S3_BUCKET']
+
+        proto = 'http://'
+        if current_app.config['STORE_AWS_S3_SECURE_URLS']:
+            proto = 'http://'
+
+        base = '{0}{1}.s3.amazonaws.com'.format(proto, bucket)
+
+        return urlparse.urljoin(base, self.key_path(filename))
+
+    def key_path(self, filename):
+        """ Generates S3 bucket key path.
+
+        Arguments
+        ---------
+        filename : str
+            Name of the file to generate the key for
+
+        Returns
+        -------
+        str
+            S3 bucket key path
+        """
+
+        base = self.store_path.rstrip('/')
+        path = urlparse.urljoin(base.rstrip('/') + '/', filename.rstrip('/'))
+
+        return path.lstrip('/')
+
+    def exists(self, filename):
         """ Checks if the file already exists in the bucket using Boto.
 
         Arguments
@@ -110,15 +158,24 @@ class S3Store(BaseStore):
 
         s3connection = self.connect()
         bucket = self.bucket(s3connection)
+        path = self.key_path(filename)
 
-        key = boto.s3.key.Key(
-            name=self.absolute_file_path(name),
-            bucket=bucket)
+        key = boto.s3.key.Key(name=path, bucket=bucket)
 
         return key.exists()
 
-    def save(self):
-        """ Takes the uploaded file and uploads it to s3.
+    def save(self, file):
+        """ Takes the uploaded file and uploads it to S3.
+
+        Note
+        ----
+        This is a blocking call and therefore will increase the time for your
+        application to respond to the client and may cause request timeouts.
+
+        Arguments
+        ---------
+        file : werkzeug.datastructures.FileStorage
+            The file uploaded by the user
 
         Returns
         -------
@@ -128,19 +185,20 @@ class S3Store(BaseStore):
 
         s3connection = self.connect()
         bucket = self.bucket(s3connection)
-        temp_file = self.open_temp_file()
+        filename = self.safe_filename(file.filename)
+        path = self.key_path(filename)
+        mimetype, encoding = mimetypes.guess_type(filename)
 
-        key = bucket.new_key(self.absolute_file_path())
-        key.set_contents_from_file(temp_file)
+        file.seek(0)
 
-        mimetype, encoding = mimetypes.guess_type(self.filename)
+        key = bucket.new_key(path)
         key.set_metadata('Content-Type', mimetype)
+        key.set_contents_from_file(file)
         key.set_acl('public-read')
 
-        temp_file.close()
-        os.unlink(self.temp_file_path)
+        file.close()
 
-        return self.relative_file_path()
+        return self.url(filename)
 
 
 class S3GeventStore(S3Store):
@@ -148,7 +206,7 @@ class S3GeventStore(S3Store):
     here will spawn a greenlet which will handle the actual upload process.
     """
 
-    def save(self):
+    def save(self, file):
         """ Acts as a proxy to the actual save method in the parent class. The
         save method will be called in a ``greenlet`` so ``gevent`` must be
         installed.
@@ -159,10 +217,25 @@ class S3GeventStore(S3Store):
             Relative path to file
         """
 
+        temp = TemporaryStore()
+        path = temp.save(file)
+        filename = self.safe_filename(file.filename)
+
         @copy_current_request_context
         def _save():
-            super(S3GeventStore, self).save()
+            storage = FileStorage(
+                stream=open(path, 'rb'),
+                filename=filename,
+                name=file.name,
+                content_type=file.content_type,
+                content_length=file.content_length,
+                headers=file.headers)
+
+            super(S3GeventStore, self).save(storage)
+
+            # Cleanup - Delete the temp file
+            os.unlink(path)
 
         gevent.spawn(_save)
 
-        return self.relative_file_path()
+        return self.url(filename)
