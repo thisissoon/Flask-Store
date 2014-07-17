@@ -7,6 +7,8 @@ Usage Documentation
    :maxdepth: 3
 
    quickstart
+   localstore
+   s3store
 
 Reference
 ---------
