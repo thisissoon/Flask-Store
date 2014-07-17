@@ -23,7 +23,7 @@ object.
         app.run()
 
 That is all there is to it. If you use an application factory then you can use
-:meth:`flask_stores.Store.init_app` method instead:
+:meth:`flask_store.Store.init_app` method instead:
 
 .. sourcecode:: python
 

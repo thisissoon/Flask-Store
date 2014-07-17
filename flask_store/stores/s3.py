@@ -38,9 +38,9 @@ import warnings
 
 try:
     import boto
+    BOTO_INSTALLED = True
 except ImportError:
-    raise ImportError('boto must be installed to use the S3Store/S3GreenStore')
-
+    BOTO_INSTALLED = False
 
 try:
     import gevent.monkey
@@ -60,12 +60,21 @@ from werkzeug.datastructures import FileStorage
 
 
 class S3Store(BaseStore):
+    """ Amazon Simple Storage Service Store (S3). Allows files to be stored in
+    an AWS S3 bucket.
+    """
 
+    #: Required application configuration variables
     REQUIRED_CONFIGURATION = [
         'STORE_AWS_ACCESS_KEY',
         'STORE_AWS_SECRET_KEY',
         'STORE_AWS_S3_BUCKET',
         'STORE_AWS_S3_REGION']
+
+    def __init__(self, *args, **kwargs):
+        if not BOTO_INSTALLED:
+            raise ImportError('boto must be installed to use the '
+                              'S3Store/S3GreenStore')
 
     @staticmethod
     def app_defaults(app):
@@ -80,6 +89,10 @@ class S3Store(BaseStore):
 
         app.config.setdefault('STORE_PATH', '/')
         app.config.setdefault('STORE_AWS_S3_SECURE_URLS', True)
+
+        if not BOTO_INSTALLED:
+            raise ImportError('boto must be installed to use the '
+                              'S3Store/S3GreenStore')
 
     def connect(self):
         """ Returns an S3 connection instance.

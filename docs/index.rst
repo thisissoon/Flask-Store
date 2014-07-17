@@ -16,6 +16,7 @@ Reference
 .. toctree::
    :maxdepth: 3
 
+   api
    changelog
    contributors
 

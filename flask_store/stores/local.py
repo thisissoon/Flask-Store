@@ -8,6 +8,7 @@ Local file storage for your Flask application.
 
 Example
 -------
+
 .. sourcecode:: python
 
     from flask import Flask, request
@@ -32,6 +33,7 @@ Example
             provider = store.Provider()
             provider.save(request.files.get('foo'))
 
+
 """
 
 import errno
@@ -42,6 +44,9 @@ from flask_store.stores import BaseStore
 
 
 class LocalStore(BaseStore):
+    """ The default provider for Flask-Store. Handles saving files onto the
+    local file system.
+    """
 
     #: Ensure a route is registered for serving files
     register_route = True
