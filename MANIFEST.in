@@ -1,0 +1,2 @@
+include setup.py README.rst MANIFEST.in CHANGELOG.rst REQS.txt REQS.DEVELOP.txt VERSION setup.cfg
+global-exclude *~
