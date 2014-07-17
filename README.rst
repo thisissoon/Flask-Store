@@ -10,8 +10,8 @@ backends or one of the provided storage backends.
     This Flask Extenstion is under heavy development. It is likely API's will
     change without warning.
 
-Provided File Storage Backend
------------------------------
+Included Providers
+------------------
 
 * Local File System
-* AWS Simple Storage Service (s3)
+* AWS Simple Storage Service (S3)
