@@ -90,7 +90,7 @@ class Store(object):
             Flask application instance
         """
 
-        app.config.setdefault('STORE_DEFAULT_PROVIDER', DEFAULT_PROVIDER)
+        app.config.setdefault('STORE_PROVIDER', DEFAULT_PROVIDER)
 
         if not hasattr(app, 'extensions'):
             app.extensions = {}
@@ -152,7 +152,7 @@ class Store(object):
         """
 
         if not hasattr(self, '_provider'):
-            parts = app.config['STORE_DEFAULT_PROVIDER'].split('.')
+            parts = app.config['STORE_PROVIDER'].split('.')
             klass = parts.pop()
             path = '.'.join(parts)
 
