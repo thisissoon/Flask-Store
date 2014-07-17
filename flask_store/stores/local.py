@@ -36,7 +36,6 @@ Example
 
 import errno
 import os
-import urlparse
 
 from flask import current_app
 from flask_store.stores import BaseStore
@@ -58,8 +57,8 @@ class LocalStore(BaseStore):
             Flask application at init
         """
 
-        app.config.setdefault('STORE_PATH', os.path.sep)
-        app.config.setdefault('STORE_URL', '/')
+        app.config.setdefault('STORE_PATH', os.getcwdu())
+        app.config.setdefault('STORE_URL_PREFIX', '/flaskstore')
 
     def url(self, filename):
         """ Returns URL to the file, this maybe relative from the domain or
@@ -76,11 +75,30 @@ class LocalStore(BaseStore):
             The URL tot the file
         """
 
-        base = current_app.config['STORE_URL']
+        parts = [current_app.config['STORE_URL_PREFIX'], ]
         if self.destination:
-            base = urlparse.urljoin(base, self.destination)
+            parts.append(self.destination)
 
-        return urlparse.urljoin(base, filename)
+        parts.append(filename)
+
+        return self.url_join(*parts)
+
+    def join(self, *parts):
+        """ Joins paths together in a safe manor.
+
+        Returns
+        -------
+        str
+            Joined paths
+        """
+
+        path = ''
+        for i, part in enumerate(parts):
+            if i > 0:
+                part = part.lstrip(os.path.sep)
+            path = os.path.join(path, part)
+
+        return path.rstrip(os.path.sep)
 
     def exists(self, filename):
         """ Returns boolean of the provided filename exists at the compiled
@@ -97,7 +115,8 @@ class LocalStore(BaseStore):
             Whether the file exists on the file system
         """
 
-        return os.path.exists(os.path.join(self.store_path, filename))
+        path = self.join(self.store_path, filename)
+        return os.path.exists(path)
 
     def save(self, file):
         """ Save the file on the local file system. Simply builds the paths
@@ -116,8 +135,8 @@ class LocalStore(BaseStore):
         """
 
         filename = self.safe_filename(file.filename)
-        absolute_path = self.store_file_path(filename)
-        directory = os.path.dirname(absolute_path)
+        path = self.join(self.store_path, filename)
+        directory = os.path.dirname(path)
 
         if not os.path.exists(directory):
             # Taken from Django - Race condition between os.path.exists and
@@ -132,7 +151,7 @@ class LocalStore(BaseStore):
             raise IOError('{0} is not a directory'.format(directory))
 
         # Save the file
-        file.save(absolute_path)
+        file.save(path)
         file.close()
 
         # Return the url to the file

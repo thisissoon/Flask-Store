@@ -9,6 +9,7 @@ Base store functionality and classes.
 
 import os
 import shortuuid
+import urlparse
 
 from flask import current_app
 from werkzeug.utils import secure_filename
@@ -37,22 +38,19 @@ class BaseStore(object):
             ``STORE_RELATIVE_BASE_PATH``, default None
         """
 
-        # Base path which comes from application configuration, default the
-        # the system file path seperator, e.g: /
-        self.store_path = current_app.config['STORE_PATH']
+        # The base store path for the provider
+        self.store_path = self.join(current_app.config['STORE_PATH'])
 
         # Append the destination to the base relative path
         if destination:
-            if destination.startswith(os.path.sep):
-                destination = destination[1:]
-            self.store_path = os.path.join(self.store_path, destination)
+            self.store_path = self.join(self.store_path, destination)
 
         # Save Destination
         self.destination = destination
 
     def safe_filename(self, filename):
         """ If the file already exists the file will be renamed to contain a
-        timestamp of when the file was created. This will avoid overwtites.
+        short url safe UUID. This will avoid overwtites.
 
         Arguments
         ---------
@@ -76,21 +74,41 @@ class BaseStore(object):
 
         return filename
 
-    def store_file_path(self, filename):
-        """ Returns the fulll absolute path to a file.
+    def url_join(self, *parts):
+        """ Safe url part joining.
 
         Arguments
         ---------
-        filename : str
-            Name of the file
+        *parts : list
+            List of parts to join together
 
         Returns
         -------
         str
-            Absolute path to the file
+            Joined url parts
         """
 
-        return os.path.join(self.store_path, filename)
+        path = ''
+        for i, part in enumerate(parts):
+            if i > 0:
+                part = part.lstrip('/')
+            path = urlparse.urljoin(path.rstrip('/') + '/', part.rstrip('/'))
+
+        return path.lstrip('/')
+
+    def join(self, *args, **kwargs):
+        """ Each provider needs to implement how to safely join parts of a
+        path together to result in a path which can be used for the provider.
+
+        Raises
+        ------
+        NotImplementedError
+            If the "join" method has not been implemented
+        """
+
+        raise NotImplementedError(
+            'You must define a "join" method in the {0} provider.'.format(
+                self.__class__.__name__))
 
     def exists(self, *args, **kwargs):
         """ Placeholder "exists" method. This should be overridden by custom
@@ -104,7 +122,7 @@ class BaseStore(object):
         """
 
         raise NotImplementedError(
-            'You must define an "exists" method in the {0} provider.'.format(
+            'You must define a "exists" method in the {0} provider.'.format(
                 self.__class__.__name__))
 
     def save(self, *args, **kwargs):
@@ -118,5 +136,5 @@ class BaseStore(object):
         """
 
         raise NotImplementedError(
-            'You must define an "save" method in the {0} provider.'.format(
+            'You must define a "save" method in the {0} provider.'.format(
                 self.__class__.__name__))

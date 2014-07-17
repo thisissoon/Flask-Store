@@ -123,24 +123,21 @@ class S3Store(BaseStore):
 
         return urlparse.urljoin(base, self.key_path(filename))
 
-    def key_path(self, filename):
-        """ Generates S3 bucket key path.
+    def join(self, *parts):
+        """ Joins paths into a url.
 
         Arguments
         ---------
-        filename : str
-            Name of the file to generate the key for
+        *parts : list
+            List of arbitrary paths to join together
 
         Returns
         -------
         str
-            S3 bucket key path
+            S3 save joined paths
         """
 
-        base = self.store_path.rstrip('/')
-        path = urlparse.urljoin(base.rstrip('/') + '/', filename.rstrip('/'))
-
-        return path.lstrip('/')
+        return self.url_join(*parts)
 
     def exists(self, filename):
         """ Checks if the file already exists in the bucket using Boto.
@@ -158,7 +155,7 @@ class S3Store(BaseStore):
 
         s3connection = self.connect()
         bucket = self.bucket(s3connection)
-        path = self.key_path(filename)
+        path = self.join(self.store_path, filename)
 
         key = boto.s3.key.Key(name=path, bucket=bucket)
 
@@ -186,7 +183,7 @@ class S3Store(BaseStore):
         s3connection = self.connect()
         bucket = self.bucket(s3connection)
         filename = self.safe_filename(file.filename)
-        path = self.key_path(filename)
+        path = self.join(self.store_path, filename)
         mimetype, encoding = mimetypes.guess_type(filename)
 
         file.seek(0)

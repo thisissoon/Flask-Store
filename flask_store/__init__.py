@@ -11,6 +11,8 @@ the following providers out of the box:
 * Amazon Simple File Storage (requires ``boto`` to be installed)
 """
 
+import urlparse
+
 from flask import current_app, send_from_directory
 from flask_store.exceptions import NotConfiguredError
 from importlib import import_module
@@ -95,8 +97,9 @@ class Store(object):
         app.extensions['store'] = StoreState(self, app)
 
         self.Provider = self.provider(app)
-        self.check_config(app)
         self.set_provider_defaults(app)
+        self.register_route(app)
+        self.check_config(app)
 
     def check_config(self, app):
         """ Checks the required application configuration variables are set
@@ -181,11 +184,12 @@ class Store(object):
             Flask application instance
         """
 
-        def serve(self, path):
-            return send_from_directory(
-                app.config['STORE_PATH'],
-                path)
+        def serve(filename):
+            return send_from_directory(app.config['STORE_PATH'], filename)
 
         # Only do this if the Provider says so
         if self.Provider.register_route:
-            app.add_url_rule('', 'flask.store.file', serve)
+            url = urlparse.urljoin(
+                app.config['STORE_URL_PREFIX'].lstrip('/') + '/',
+                '<path:filename>')
+            app.add_url_rule('/' + url, 'flask.store.file', serve)
