@@ -6,6 +6,7 @@ Usage Documentation
 .. toctree::
    :maxdepth: 3
 
+   install
    quickstart
    localstore
    s3store
