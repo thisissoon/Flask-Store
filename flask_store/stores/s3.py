@@ -78,6 +78,7 @@ class S3Store(BaseStore):
             Flask application at init
         """
 
+        app.config.setdefault('STORE_PATH', '/')
         app.config.setdefault('STORE_AWS_S3_SECURE_URLS', True)
 
     def connect(self):

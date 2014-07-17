@@ -96,10 +96,17 @@ class Store(object):
             app.extensions = {}
         app.extensions['store'] = StoreState(self, app)
 
+        # Set the provider class
         self.Provider = self.provider(app)
+
+        # Set configuration defaults based on provider
         self.set_provider_defaults(app)
-        self.register_route(app)
+
+        # Ensure that any required configuration vars exist
         self.check_config(app)
+
+        # Register a flask route - the provider must have register_route = True
+        self.register_route(app)
 
     def check_config(self, app):
         """ Checks the required application configuration variables are set
