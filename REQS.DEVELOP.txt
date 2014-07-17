@@ -1,0 +1,13 @@
+#
+# Flask-Store Development Requirements
+#
+
+# Documentation Generation
+
+sphinx
+sphinxcontrib-napoleon
+
+# Debugging
+
+ipython
+pdbpp

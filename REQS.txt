@@ -1,5 +1,11 @@
 #
 # Flask-Store Requirements
 #
+# This file is read when setup.py runs, reading each requirment
+# and placing it into the install_requires list. This allows for
+# python setup.py install to work correctly without the need for
+# installing requirements via pip or easy_install.
+#
 
+Flask==0.10.1
 shortuuid==0.1

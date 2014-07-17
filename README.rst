@@ -5,6 +5,11 @@
 in the same vien as Django-Storages, allowing developers to user custom storage
 backends or one of the provided storage backends.
 
+.. warning::
+
+    This Flask Extenstion is under heavy development. It is likely API's will
+    change without warning.
+
 Provided File Storage Backend
 -----------------------------
 
