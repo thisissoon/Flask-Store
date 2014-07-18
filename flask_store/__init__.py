@@ -90,6 +90,7 @@ class Store(object):
             Flask application instance
         """
 
+        app.config.setdefault('STORE_DOMAIN', None)
         app.config.setdefault('STORE_PROVIDER', DEFAULT_PROVIDER)
 
         if not hasattr(app, 'extensions'):

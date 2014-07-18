@@ -19,9 +19,9 @@ Example
         foo = FileField('foo')
 
     app = Flask(__app__)
-    app.config['STORE_DEFAULT_BACKEND'] = 'flask_store.stores.s3.S3Store'
-    app.config['STORE_AWS_ACCESS_KEY'] = 'foo'
-    app.confog['STORE_AWS_SECRET_KEY'] = 'bar'
+    app.config['STORE_PROVIDER'] = 'flask_store.stores.s3.S3Store'
+    app.config['STORE_S3_ACCESS_KEY'] = 'foo'
+    app.confog['STORE_S3_SECRET_KEY'] = 'bar'
 
     store = Store(app)
 
@@ -51,10 +51,10 @@ except ImportError:
 
 import mimetypes
 import os
-import urlparse
 
 from flask import copy_current_request_context, current_app
 from flask_store.stores import BaseStore
+from flask_store.files import StoreFile
 from flask_store.stores.temp import TemporaryStore
 from werkzeug.datastructures import FileStorage
 
@@ -66,15 +66,10 @@ class S3Store(BaseStore):
 
     #: Required application configuration variables
     REQUIRED_CONFIGURATION = [
-        'STORE_AWS_ACCESS_KEY',
-        'STORE_AWS_SECRET_KEY',
-        'STORE_AWS_S3_BUCKET',
-        'STORE_AWS_S3_REGION']
-
-    def __init__(self, *args, **kwargs):
-        if not BOTO_INSTALLED:
-            raise ImportError('boto must be installed to use the '
-                              'S3Store/S3GreenStore')
+        'STORE_S3_ACCESS_KEY',
+        'STORE_S3_SECRET_KEY',
+        'STORE_S3_BUCKET',
+        'STORE_S3_REGION']
 
     @staticmethod
     def app_defaults(app):
@@ -88,7 +83,7 @@ class S3Store(BaseStore):
         """
 
         app.config.setdefault('STORE_PATH', '/')
-        app.config.setdefault('STORE_AWS_S3_SECURE_URLS', True)
+        app.config.setdefault('STORE_URL_PREFIX', '')
 
         if not BOTO_INSTALLED:
             raise ImportError('boto must be installed to use the '
@@ -100,9 +95,9 @@ class S3Store(BaseStore):
 
         if not hasattr(self, '_s3connection'):
             s3connection = boto.s3.connect_to_region(
-                current_app.config['STORE_AWS_S3_REGION'],
-                aws_access_key_id=current_app.config['STORE_AWS_ACCESS_KEY'],
-                aws_secret_access_key=current_app.config['STORE_AWS_SECRET_KEY'])
+                current_app.config['STORE_S3_REGION'],
+                aws_access_key_id=current_app.config['STORE_S3_ACCESS_KEY'],
+                aws_secret_access_key=current_app.config['STORE_S3_SECRET_KEY'])
             setattr(self, '_s3connection', s3connection)
         return getattr(self, '_s3connection')
 
@@ -111,31 +106,7 @@ class S3Store(BaseStore):
         """
 
         return s3connection.get_bucket(
-            current_app.config.get('STORE_AWS_S3_BUCKET'))
-
-    def url(self, filename):
-        """ Generates the S3 url to the file.
-
-        Arguments
-        ---------
-        filename : str
-            Name of the file to generate the url for
-
-        Returns
-        -------
-        str
-            S3 bucket key path
-        """
-
-        bucket = current_app.config['STORE_AWS_S3_BUCKET']
-
-        proto = 'http://'
-        if current_app.config['STORE_AWS_S3_SECURE_URLS']:
-            proto = 'http://'
-
-        base = '{0}{1}.s3.amazonaws.com'.format(proto, bucket)
-
-        return urlparse.urljoin(base, self.key_path(filename))
+            current_app.config.get('STORE_S3_BUCKET'))
 
     def join(self, *parts):
         """ Joins paths into a url.
@@ -209,7 +180,8 @@ class S3Store(BaseStore):
 
         file.close()
 
-        return self.url(filename)
+        # Returns a file wrapper instance around the file and provider
+        return StoreFile(filename, destination=self.destination)
 
 
 class S3GeventStore(S3Store):
@@ -254,4 +226,5 @@ class S3GeventStore(S3Store):
 
         gevent.spawn(_save)
 
-        return self.url(filename)
+        # Returns a file wrapper instance around the file and provider
+        return StoreFile(filename, destination=self.destination)
