@@ -39,8 +39,8 @@ Example
 import errno
 import os
 
-from flask import current_app
 from flask_store.stores import BaseStore
+from flask_store.files import StoreFile
 
 
 class LocalStore(BaseStore):
@@ -64,29 +64,6 @@ class LocalStore(BaseStore):
 
         app.config.setdefault('STORE_PATH', os.getcwdu())
         app.config.setdefault('STORE_URL_PREFIX', '/flaskstore')
-
-    def url(self, filename):
-        """ Returns URL to the file, this maybe relative from the domain or
-        include the domain depending on how Flask-Store has been configured.
-
-        Arguments
-        ---------
-        filename : str
-            Name of the uploaded file
-
-        Returns
-        -------
-        str
-            The URL tot the file
-        """
-
-        parts = [current_app.config['STORE_URL_PREFIX'], ]
-        if self.destination:
-            parts.append(self.destination)
-
-        parts.append(filename)
-
-        return self.url_join(*parts)
 
     def join(self, *parts):
         """ Joins paths together in a safe manor.
@@ -128,6 +105,9 @@ class LocalStore(BaseStore):
         and calls :meth:`werkzeug.datastructures.FileStorage.save` on the
         file object.
 
+        See Also
+        --------
+
         Arguments
         ---------
         file : werkzeug.datastructures.FileStorage
@@ -135,8 +115,8 @@ class LocalStore(BaseStore):
 
         Returns
         -------
-        str
-            URL to the file
+        flask_store.file_wapper.FileWrapper
+            A thin wrapper around the file and provider
         """
 
         filename = self.safe_filename(file.filename)
@@ -159,5 +139,5 @@ class LocalStore(BaseStore):
         file.save(path)
         file.close()
 
-        # Return the url to the file
-        return self.url(filename)
+        # Returns a file wrapper instance around the file and provider
+        return StoreFile(filename, destination=self.destination)

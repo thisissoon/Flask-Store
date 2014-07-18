@@ -43,15 +43,11 @@ Step 2: Configuration
 ---------------------
 
 So all we need to do now is tell Flask-Store where to save files once they have
-been uploaded.
+been uploaded. For asolute url generation we also need to tell Flask-Store about
+the domain where the files can accessed.
 
-.. note::
-
-    By default Flast-Store will use the current working directory as the path
-    to save files so if you are happy with that you don't even have to do this
-    step.
-
-To do this we just need to set a configuration variable called ``STORE_PATH``.
+To do this we just need to set a configuration variable called ``STORE_PATH``
+and ``STORE_DOMAIN``.
 
 For brevity we will not show the application factory way because its pretty much
 identical.
@@ -62,6 +58,7 @@ identical.
     from flask.ext.store import Store
 
     app = Flask(__name__)
+    app.config['STORE_DOMAIN'] = 'http://127.0.0.1:5000'
     app.config['STORE_PATH'] = '/some/path/to/somewhere'
     store = Store(app)
 
@@ -91,6 +88,7 @@ Storage) to save it.
     from flask.ext.store import Store
 
     app = Flask(__name__)
+    app.config['STORE_DOMAIN'] = 'http://127.0.0.1:5000'
     app.config['STORE_PATH'] = '/some/path/to/somewhere'
     store = Store(app)
 
@@ -98,12 +96,12 @@ Storage) to save it.
     def upload():
         file = request.files.get('afile')
         provider = store.Provider()
-        url = provider.save(file)
+        f = provider.save(file)
 
-        return url
+        return f.absolute_url()
 
     if __name__ == "__main__":
-        app.run(debug=True)
+        app.run()
 
 Now if we were to ``curl`` a file to our upload route we should get a url
 back which tells how we can access it.
@@ -124,7 +122,7 @@ We should get back something like:
     Server: Werkzeug/0.9.6 Python/2.7.5
     Date: Thu, 17 Jul 2014 11:32:02 GMT
 
-    flaskstore/localfile.jpg%
+    http://127.0.0.1:5000/flaskstore/localfile.jpg%
 
 Now if you went to ``http://127.0.0.1:5000/flaskstore/localfile.jpg`` in
 your browser you should see the image you uploaded. That is because
