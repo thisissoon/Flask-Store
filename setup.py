@@ -130,7 +130,7 @@ setup(
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
-        'Development Status :: 5 - Production/Stable',
+        'Development Status :: 3 - Alpha',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2',
