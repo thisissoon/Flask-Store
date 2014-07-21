@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 """
-flask_store.stores.local
-========================
+flask_store.providers.local
+===========================
 
 Local file storage for your Flask application.
 
@@ -38,14 +38,11 @@ Example
 
 import errno
 import os
-import urlparse
 
-from flask import current_app
-from flask_store.stores import BaseStore
-from flask_store.utils import path_to_uri
+from flask_store.providers import Provider
 
 
-class LocalStore(BaseStore):
+class LocalProvider(Provider):
     """ The default provider for Flask-Store. Handles saving files onto the
     local file system.
     """
@@ -64,11 +61,20 @@ class LocalStore(BaseStore):
             Flask application at init
         """
 
+        # For Local file storage the default store path is the current
+        # working directory
         app.config.setdefault('STORE_PATH', os.getcwdu())
-        app.config.setdefault('STORE_URL_PREFIX', '/flaskstore')
+
+        # Default URL Prefix
+        app.config.setdefault('STORE_URL_PREFIX', '/uploads')
 
     def join(self, *parts):
         """ Joins paths together in a safe manor.
+
+        Arguments
+        ---------
+        \*parts : list
+            List of arbitrary paths to join together
 
         Returns
         -------
@@ -83,69 +89,6 @@ class LocalStore(BaseStore):
             path = os.path.join(path, part)
 
         return path.rstrip(os.path.sep)
-
-    def absolute_path(self, filename):
-        """ Returns the absollute file path to the file.
-
-        Returns
-        -------
-        str
-            Absolute file path
-        """
-
-        return self.join(self.store_path, filename)
-
-    def relative_path(self, filename):
-        """ Returns the relative path to the file, so minus the base
-        path but still includes the destination if it is set.
-
-        Returns
-        -------
-        str
-            Relative path to file
-        """
-
-        parts = []
-        if self.destination:
-            parts.append(self.destination)
-        parts.append(filename)
-
-        return self.join(*parts)
-
-    def absolute_url(self, filename):
-        """ Absolute url contains a domain if it is set in the configuration,
-        the url predix, destination and the actual file name.
-
-        Returns
-        -------
-        str
-            Full absolute URL to file
-        """
-
-        if not current_app.config['STORE_DOMAIN']:
-            path = self.relative_url(filename)
-
-        path = urlparse.urljoin(
-            current_app.config['STORE_DOMAIN'],
-            self.relative_url(filename))
-
-        return path_to_uri(path)
-
-    def relative_url(self, filename):
-        """ Returns the relative URL, basically minus the domain.
-
-        Returns
-        -------
-        str
-            Realtive URL to file
-        """
-
-        parts = [current_app.config['STORE_URL_PREFIX'], ]
-        if self.destination:
-            parts.append(self.destination)
-        parts.append(filename)
-
-        return path_to_uri(self.url_join(*parts))
 
     def exists(self, filename):
         """ Returns boolean of the provided filename exists at the compiled
@@ -169,9 +112,6 @@ class LocalStore(BaseStore):
         """ Save the file on the local file system. Simply builds the paths
         and calls :meth:`werkzeug.datastructures.FileStorage.save` on the
         file object.
-
-        See Also
-        --------
 
         Arguments
         ---------
@@ -199,4 +139,4 @@ class LocalStore(BaseStore):
         file.save(path)
         file.close()
 
-        return filename
+        self.filename = filename

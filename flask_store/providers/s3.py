@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 """
-flask_store.stores.s3
-=====================
+flask_store.providers.s3
+========================
 
 AWS Simple Storage Service file Store.
 
@@ -11,7 +11,7 @@ Example
 .. sourcecode:: python
 
     from flask import Flask, request
-    from flask.ext.Store import Backend, Store
+    from flask.ext.Store import Provider, Store
     from wtforms import Form
     from wtforms.fields import FileField
 
@@ -19,7 +19,7 @@ Example
         foo = FileField('foo')
 
     app = Flask(__app__)
-    app.config['STORE_PROVIDER'] = 'flask_store.stores.s3.S3Store'
+    app.config['STORE_PROVIDER'] = 'flask_store.providers.s3.S3Provider'
     app.config['STORE_S3_ACCESS_KEY'] = 'foo'
     app.confog['STORE_S3_SECRET_KEY'] = 'bar'
 
@@ -30,11 +30,9 @@ Example
         form = FooForm()
         form.validate_on_submit()
 
-        backend = Backend()
-        backend.save(form.files.get('foo'))
+        provider = Provider()
+        provider.save(form.files.get('foo'))
 """
-
-import warnings
 
 try:
     import boto
@@ -45,22 +43,21 @@ except ImportError:
 try:
     import gevent.monkey
     gevent.monkey.patch_all()
+    GEVENT_INSTALLED = True
 except ImportError:
-    warnings.warn('Gevent is not installed, you will not be able to use the '
-                  'S3GreenStore')
+    GEVENT_INSTALLED = False
 
 import mimetypes
 import os
-import urlparse
 
 from flask import copy_current_request_context, current_app
-from flask_store.stores import BaseStore
-from flask_store.stores.temp import TemporaryStore
-from flask_store.utils import path_to_uri
+from flask_store.exceptions import NotConfiguredError
+from flask_store.providers import Provider
+from flask_store.providers.temp import TemporaryStore
 from werkzeug.datastructures import FileStorage
 
 
-class S3Store(BaseStore):
+class S3Provider(Provider):
     """ Amazon Simple Storage Service Store (S3). Allows files to be stored in
     an AWS S3 bucket.
     """
@@ -83,12 +80,17 @@ class S3Store(BaseStore):
             Flask application at init
         """
 
+        # For S3 by default the STORE_PATH is the root of the bucket
         app.config.setdefault('STORE_PATH', '/')
-        app.config.setdefault('STORE_URL_PREFIX', '')
+
+        # For S3 the STORE_PATH makes up part of the key and therefore
+        # doubles up as the STORE_URL_PREFIX
+        app.config.setdefault('STORE_URL_PREFIX', app.config['STORE_PATH'])
 
         if not BOTO_INSTALLED:
-            raise ImportError('boto must be installed to use the '
-                              'S3Store/S3GreenStore')
+            raise ImportError(
+                'boto must be installed to use the S3Provider or the '
+                'S3GeventProvider')
 
     def connect(self):
         """ Returns an S3 connection instance.
@@ -114,7 +116,7 @@ class S3Store(BaseStore):
 
         Arguments
         ---------
-        *parts : list
+        \*parts : list
             List of arbitrary paths to join together
 
         Returns
@@ -124,69 +126,6 @@ class S3Store(BaseStore):
         """
 
         return self.url_join(*parts)
-
-    def relative_path(self, filename):
-        """ Returns the relative path to the file, so minus the base
-        path but still includes the destination if it is set.
-
-        Returns
-        -------
-        str
-            Relative path to file
-        """
-
-        parts = []
-        if self.destination:
-            parts.append(self.destination)
-        parts.append(filename)
-
-        return self.join(*parts)
-
-    def absolute_path(self, filename):
-        """ Returns the absollute file path to the file.
-
-        Returns
-        -------
-        str
-            Absolute file path
-        """
-
-        return self.join(self.store_path, filename)
-
-    def relative_url(self, filename):
-        """ Returns the relative URL, basically minus the domain.
-
-        Returns
-        -------
-        str
-            Realtive URL to file
-        """
-
-        parts = [current_app.config['STORE_PATH'], ]
-        if self.destination:
-            parts.append(self.destination)
-        parts.append(filename)
-
-        return path_to_uri(self.url_join(*parts))
-
-    def absolute_url(self, filename):
-        """ Absolute url contains a domain if it is set in the configuration,
-        the url predix, destination and the actual file name.
-
-        Returns
-        -------
-        str
-            Full absolute URL to file
-        """
-
-        if not current_app.config['STORE_DOMAIN']:
-            path = self.relative_url(filename)
-
-        path = urlparse.urljoin(
-            current_app.config['STORE_DOMAIN'],
-            self.relative_url(filename))
-
-        return path_to_uri(path)
 
     def exists(self, filename):
         """ Checks if the file already exists in the bucket using Boto.
@@ -239,13 +178,23 @@ class S3Store(BaseStore):
 
         file.close()
 
-        return filename
+        self.filename = filename
 
 
-class S3GeventStore(S3Store):
-    """ A Gevent Support for :class:`.S3Store`. Calling :meth:`.save`
+class S3GeventProvider(S3Provider):
+    """ A Gevent Support for :class:`.S3Provider`. Calling :meth:`.save`
     here will spawn a greenlet which will handle the actual upload process.
     """
+
+    def __init__(self, *args, **kwargs):
+        """
+        """
+
+        if not GEVENT_INSTALLED:
+            raise NotConfiguredError(
+                'You must have gevent installed to use the S3GeventProvider')
+
+        super(S3GeventProvider, self).__init__(*args, **kwargs)
 
     def save(self, file):
         """ Acts as a proxy to the actual save method in the parent class. The
@@ -256,11 +205,6 @@ class S3GeventStore(S3Store):
         file to a temporary location on disk and create a new
         :class:`werkzeug.datastructures.FileStorage` instance with the stram
         being the temporary file.
-
-        Returns
-        -------
-        str
-            Relative path to file
         """
 
         temp = TemporaryStore()
@@ -277,11 +221,11 @@ class S3GeventStore(S3Store):
                 content_length=file.content_length,
                 headers=file.headers)
 
-            super(S3GeventStore, self).save(storage)
+            super(S3GeventProvider, self).save(storage)
 
             # Cleanup - Delete the temp file
             os.unlink(path)
 
         gevent.spawn(_save)
 
-        return filename
+        self.filename = filename

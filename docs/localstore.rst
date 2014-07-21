@@ -6,9 +6,9 @@ Local Store
     This document assumes you have already read the
     :doc:`quickstart` guide.
 
-As we discussed in the :doc:`quickstart` guide Flask-Store uses its
-:class:`flask_store.stores.local.LocalStore` as its default provider
-and here we will discuss some of the more advanced concepts of this
+As we discussed in the :doc:`quickstart` guide Flask-Store uses the
+:class:`flask_store.providers.local.LocalProvidder` class as the default
+provider and here we will discuss some of the more advanced concepts of this
 store provider.
 
 Enable
@@ -17,7 +17,7 @@ Enable
 This is the default provider but if you wish to be explicit (+1) then
 simply set the following in your application configuration::
 
-    STORE_PROVIDER='flask_store.stores.local.LocalStore'
+    STORE_PROVIDER='flask_store.providers.local.LocalProvider'
 
 Configuration
 -------------

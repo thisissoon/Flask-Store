@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 """
-flask_store.stores
-==================
+flask_store.providers
+=====================
 
 Base store functionality and classes.
 """
@@ -12,19 +12,20 @@ import shortuuid
 import urlparse
 
 from flask import current_app
+from flask_store.utils import path_to_uri
 from werkzeug.utils import secure_filename
 
 
-class BaseStore(object):
-    """ Base file storage class all storage providers should inherit from. This
+class Provider(object):
+    """ Base provider class all storage providers should inherit from. This
     class provides some of the base functionality for all providers. Override
     as required.
     """
 
-    #: By default Stores do not require a route to be registered
+    #: By default Providers do not require a route to be registered
     register_route = False
 
-    def __init__(self, destination=None):
+    def __init__(self, path=None, location=None):
         """ Constructor. When extending this class do not forget to call
         ``super``.
 
@@ -33,20 +34,92 @@ class BaseStore(object):
 
         Keyword Arguments
         -----------------
-        destination : str, optional
-            Relative destination directory, this is appended to the
-            ``STORE_RELATIVE_BASE_PATH``, default None
+        path : str, optional
+            The relative path to the file for the provider
+        location : str, optional
+            Relative location directory, this is appended to the
+            ``STORE_PATH``, default None
         """
 
         # The base store path for the provider
         self.store_path = self.join(current_app.config['STORE_PATH'])
 
-        # Append the destination to the base relative path
-        if destination:
-            self.store_path = self.join(self.store_path, destination)
+        # Save location
+        self.location = location
 
-        # Save Destination
-        self.destination = destination
+        if path:
+            path, self.filename = os.path.split(path)
+
+        # Appends location to the store path
+        if location:
+            self.store_path = self.join(self.store_path, location)
+
+    @property
+    def relative_path(self):
+        """ Returns the relative path to the file, so minus the base
+        path but still includes the location if it is set.
+
+        Returns
+        -------
+        str
+            Relative path to file
+        """
+
+        parts = []
+        if self.location:
+            parts.append(self.location)
+        parts.append(self.filename)
+
+        return self.join(*parts)
+
+    @property
+    def absolute_path(self):
+        """ Returns the absollute file path to the file.
+
+        Returns
+        -------
+        str
+            Absolute file path
+        """
+
+        return self.join(self.store_path, self.filename)
+
+    @property
+    def relative_url(self):
+        """ Returns the relative URL, basically minus the domain.
+
+        Returns
+        -------
+        str
+            Realtive URL to file
+        """
+
+        parts = [current_app.config['STORE_URL_PREFIX'], ]
+        if self.location:
+            parts.append(self.location)
+        parts.append(self.filename)
+
+        return path_to_uri(self.url_join(*parts))
+
+    @property
+    def absolute_url(self):
+        """ Absolute url contains a domain if it is set in the configuration,
+        the url predix, location and the actual file name.
+
+        Returns
+        -------
+        str
+            Full absolute URL to file
+        """
+
+        if not current_app.config['STORE_DOMAIN']:
+            path = self.relative_url
+
+        path = urlparse.urljoin(
+            current_app.config['STORE_DOMAIN'],
+            self.relative_url)
+
+        return path_to_uri(path)
 
     def safe_filename(self, filename):
         """ If the file already exists the file will be renamed to contain a
@@ -79,7 +152,7 @@ class BaseStore(object):
 
         Arguments
         ---------
-        *parts : list
+        \*parts : list
             List of parts to join together
 
         Returns

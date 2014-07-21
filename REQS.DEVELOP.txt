@@ -7,6 +7,10 @@
 sphinx
 sphinxcontrib-napoleon
 
+# Required for documentation to build
+
+sqlalchemy
+
 # Debugging
 
 ipython
