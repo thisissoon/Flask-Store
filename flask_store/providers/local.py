@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 """
-flask_store.stores.local
-========================
+flask_store.providers.local
+===========================
 
 Local file storage for your Flask application.
 
@@ -39,11 +39,10 @@ Example
 import errno
 import os
 
-from flask_store.stores import BaseStore
-from flask_store.files import StoreFile
+from flask_store.providers import Provider
 
 
-class LocalStore(BaseStore):
+class LocalProvider(Provider):
     """ The default provider for Flask-Store. Handles saving files onto the
     local file system.
     """
@@ -62,11 +61,20 @@ class LocalStore(BaseStore):
             Flask application at init
         """
 
+        # For Local file storage the default store path is the current
+        # working directory
         app.config.setdefault('STORE_PATH', os.getcwdu())
-        app.config.setdefault('STORE_URL_PREFIX', '/flaskstore')
+
+        # Default URL Prefix
+        app.config.setdefault('STORE_URL_PREFIX', '/uploads')
 
     def join(self, *parts):
         """ Joins paths together in a safe manor.
+
+        Arguments
+        ---------
+        \*parts : list
+            List of arbitrary paths to join together
 
         Returns
         -------
@@ -105,18 +113,10 @@ class LocalStore(BaseStore):
         and calls :meth:`werkzeug.datastructures.FileStorage.save` on the
         file object.
 
-        See Also
-        --------
-
         Arguments
         ---------
         file : werkzeug.datastructures.FileStorage
             The file uploaded by the user
-
-        Returns
-        -------
-        flask_store.file_wapper.FileWrapper
-            A thin wrapper around the file and provider
         """
 
         filename = self.safe_filename(file.filename)
@@ -139,5 +139,4 @@ class LocalStore(BaseStore):
         file.save(path)
         file.close()
 
-        # Returns a file wrapper instance around the file and provider
-        return StoreFile(filename, destination=self.destination)
+        self.filename = filename

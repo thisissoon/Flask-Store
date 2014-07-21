@@ -94,11 +94,10 @@ Storage) to save it.
 
     @app.route('/upload', methods=['POST', ])
     def upload():
-        file = request.files.get('afile')
         provider = store.Provider()
-        f = provider.save(file)
+        provider.save(request.files.get('afile'))
 
-        return f.absolute_url()
+        return provider.absolute_url
 
     if __name__ == "__main__":
         app.run()
@@ -114,17 +113,15 @@ We should get back something like:
 
 .. sourcecode:: http
 
-    HTTP/1.1 100 Continue
-
     HTTP/1.0 200 OK
     Content-Type: text/html; charset=utf-8
     Content-Length: 44
     Server: Werkzeug/0.9.6 Python/2.7.5
     Date: Thu, 17 Jul 2014 11:32:02 GMT
 
-    http://127.0.0.1:5000/flaskstore/localfile.jpg%
+    http://127.0.0.1:5000/uploads/localfile.jpg%
 
-Now if you went to ``http://127.0.0.1:5000/flaskstore/localfile.jpg`` in
+Now if you went to ``http://127.0.0.1:5000/uploads/localfile.jpg`` in
 your browser you should see the image you uploaded. That is because
 Flask-Store automatically registers a route for serving files.
 

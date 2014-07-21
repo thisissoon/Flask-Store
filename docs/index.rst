@@ -8,6 +8,7 @@ Usage Documentation
 
    install
    quickstart
+   sqlalchemy
    localstore
    s3store
 

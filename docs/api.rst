@@ -7,17 +7,17 @@ API Reference
 .. automodule:: flask_store.exceptions
     :members:
 
-.. automodule:: flask_store.files
+.. automodule:: flask_store.sqla
     :members:
 
 .. automodule:: flask_store.utils
     :members:
 
-.. automodule:: flask_store.stores
+.. automodule:: flask_store.providers
     :members:
 
-.. automodule:: flask_store.stores.local
+.. automodule:: flask_store.providers.local
     :members:
 
-.. automodule:: flask_store.stores.s3
+.. automodule:: flask_store.providers.s3
     :members:

@@ -19,8 +19,8 @@ from importlib import import_module
 from werkzeug import LocalProxy
 
 
-DEFAULT_PROVIDER = 'flask_store.stores.local.LocalStore'
-StoreProvider = LocalProxy(lambda: store_provider())
+DEFAULT_PROVIDER = 'flask_store.providers.local.LocalProvider'
+Provider = LocalProxy(lambda: store_provider())
 
 
 def store_provider():

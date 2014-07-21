@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 
 """
-flask_store.stores.temp
-=======================
+flask_store.providers.temp
+==========================
 """
 
 import tempfile
 
-from flask_store.stores import BaseStore
+from flask_store.providers.local import LocalProvider
 
 
-class TemporaryStore(BaseStore):
+class TemporaryStore(LocalProvider):
     """
     """
 
