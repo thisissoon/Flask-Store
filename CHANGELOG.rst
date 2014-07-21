@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+0.0.3 - Alpha
+-------------
+* Feature: SQLAlchemy Store Type
+* Changed: Renamed ``stores`` to ``providers``
+* Removed: Removed ``FileStore`` wrapper class - it was a bad idea.
+
 0.0.2 - Alpha
 -------------
 * Feature: FileStore wrapper around provider files
