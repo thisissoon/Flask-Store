@@ -7,9 +7,6 @@ API Reference
 .. automodule:: flask_store.exceptions
     :members:
 
-.. automodule:: flask_store.files
-    :members:
-
 .. automodule:: flask_store.utils
     :members:
 

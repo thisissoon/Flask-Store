@@ -51,11 +51,12 @@ except ImportError:
 
 import mimetypes
 import os
+import urlparse
 
 from flask import copy_current_request_context, current_app
 from flask_store.stores import BaseStore
-from flask_store.files import StoreFile
 from flask_store.stores.temp import TemporaryStore
+from flask_store.utils import path_to_uri
 from werkzeug.datastructures import FileStorage
 
 
@@ -124,6 +125,69 @@ class S3Store(BaseStore):
 
         return self.url_join(*parts)
 
+    def relative_path(self, filename):
+        """ Returns the relative path to the file, so minus the base
+        path but still includes the destination if it is set.
+
+        Returns
+        -------
+        str
+            Relative path to file
+        """
+
+        parts = []
+        if self.destination:
+            parts.append(self.destination)
+        parts.append(filename)
+
+        return self.join(*parts)
+
+    def absolute_path(self, filename):
+        """ Returns the absollute file path to the file.
+
+        Returns
+        -------
+        str
+            Absolute file path
+        """
+
+        return self.join(self.store_path, filename)
+
+    def relative_url(self, filename):
+        """ Returns the relative URL, basically minus the domain.
+
+        Returns
+        -------
+        str
+            Realtive URL to file
+        """
+
+        parts = [current_app.config['STORE_PATH'], ]
+        if self.destination:
+            parts.append(self.destination)
+        parts.append(filename)
+
+        return path_to_uri(self.url_join(*parts))
+
+    def absolute_url(self, filename):
+        """ Absolute url contains a domain if it is set in the configuration,
+        the url predix, destination and the actual file name.
+
+        Returns
+        -------
+        str
+            Full absolute URL to file
+        """
+
+        if not current_app.config['STORE_DOMAIN']:
+            path = self.relative_url(filename)
+
+        path = urlparse.urljoin(
+            current_app.config['STORE_DOMAIN'],
+            self.relative_url(filename))
+
+        return path_to_uri(path)
+
     def exists(self, filename):
         """ Checks if the file already exists in the bucket using Boto.
 
@@ -158,11 +222,6 @@ class S3Store(BaseStore):
         ---------
         file : werkzeug.datastructures.FileStorage
             The file uploaded by the user
-
-        Returns
-        -------
-        str
-            Relative path to file
         """
 
         s3connection = self.connect()
@@ -180,8 +239,7 @@ class S3Store(BaseStore):
 
         file.close()
 
-        # Returns a file wrapper instance around the file and provider
-        return StoreFile(filename, destination=self.destination)
+        return filename
 
 
 class S3GeventStore(S3Store):
@@ -226,5 +284,4 @@ class S3GeventStore(S3Store):
 
         gevent.spawn(_save)
 
-        # Returns a file wrapper instance around the file and provider
-        return StoreFile(filename, destination=self.destination)
+        return filename

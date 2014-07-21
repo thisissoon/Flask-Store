@@ -7,10 +7,10 @@ flask_store.stores.temp
 
 import tempfile
 
-from flask_store.stores import BaseStore
+from flask_store.stores.local import LocalStore
 
 
-class TemporaryStore(BaseStore):
+class TemporaryStore(LocalStore):
     """
     """
 

@@ -38,9 +38,11 @@ Example
 
 import errno
 import os
+import urlparse
 
+from flask import current_app
 from flask_store.stores import BaseStore
-from flask_store.files import StoreFile
+from flask_store.utils import path_to_uri
 
 
 class LocalStore(BaseStore):
@@ -82,6 +84,69 @@ class LocalStore(BaseStore):
 
         return path.rstrip(os.path.sep)
 
+    def absolute_path(self, filename):
+        """ Returns the absollute file path to the file.
+
+        Returns
+        -------
+        str
+            Absolute file path
+        """
+
+        return self.join(self.store_path, filename)
+
+    def relative_path(self, filename):
+        """ Returns the relative path to the file, so minus the base
+        path but still includes the destination if it is set.
+
+        Returns
+        -------
+        str
+            Relative path to file
+        """
+
+        parts = []
+        if self.destination:
+            parts.append(self.destination)
+        parts.append(filename)
+
+        return self.join(*parts)
+
+    def absolute_url(self, filename):
+        """ Absolute url contains a domain if it is set in the configuration,
+        the url predix, destination and the actual file name.
+
+        Returns
+        -------
+        str
+            Full absolute URL to file
+        """
+
+        if not current_app.config['STORE_DOMAIN']:
+            path = self.relative_url(filename)
+
+        path = urlparse.urljoin(
+            current_app.config['STORE_DOMAIN'],
+            self.relative_url(filename))
+
+        return path_to_uri(path)
+
+    def relative_url(self, filename):
+        """ Returns the relative URL, basically minus the domain.
+
+        Returns
+        -------
+        str
+            Realtive URL to file
+        """
+
+        parts = [current_app.config['STORE_URL_PREFIX'], ]
+        if self.destination:
+            parts.append(self.destination)
+        parts.append(filename)
+
+        return path_to_uri(self.url_join(*parts))
+
     def exists(self, filename):
         """ Returns boolean of the provided filename exists at the compiled
         absolute path.
@@ -112,11 +177,6 @@ class LocalStore(BaseStore):
         ---------
         file : werkzeug.datastructures.FileStorage
             The file uploaded by the user
-
-        Returns
-        -------
-        flask_store.file_wapper.FileWrapper
-            A thin wrapper around the file and provider
         """
 
         filename = self.safe_filename(file.filename)
@@ -139,5 +199,4 @@ class LocalStore(BaseStore):
         file.save(path)
         file.close()
 
-        # Returns a file wrapper instance around the file and provider
-        return StoreFile(filename, destination=self.destination)
+        return filename
