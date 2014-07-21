@@ -7,8 +7,6 @@ flask_store.sqlalchemy
 Custom SQLAlchemy types for handling Flask-Store instances in SQLAlchemy.
 """
 
-import warnings
-
 
 try:
     import sqlalchemy
@@ -19,6 +17,7 @@ except ImportError:
 
 from flask_store import Provider
 from flask_store.exceptions import NotConfiguredError
+from werkzeug.datastructures import FileStorage
 
 
 class FlaskStoreType(sqlalchemy.types.TypeDecorator):
@@ -81,6 +80,9 @@ class FlaskStoreType(sqlalchemy.types.TypeDecorator):
             The files realtive path on what ever storage backend defined in the
             Flask Application configuration
         """
+
+        if not isinstance(value, FileStorage):
+            return None
 
         provider = Provider(location=self.location)
         provider.save(value)
