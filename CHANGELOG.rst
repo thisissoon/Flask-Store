@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+0.0.3.1 - Alpha
+---------------
+* Hotfix: Bug in FlaskStoreType where settings a ``None`` value would break the
+  Provider, now checks the value is the expected instance type
+
 0.0.3 - Alpha
 -------------
 * Feature: SQLAlchemy Store Type
