@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+0.0.4.1 - Alpha
+---------------
+* Hotfix: Filename changed when saved is set on the provider instance
+
 0.0.4 - Alpha
 -------------
 * Changed: Minor change to API, Provider now requires file instance or path

@@ -173,6 +173,9 @@ class S3Provider(Provider):
         key.set_contents_from_file(fp)
         key.set_acl('public-read')
 
+        # Update the filename - it may have changes
+        self.filename = filename
+
     def open(self):
         """ Opens an S3 key and returns an oepn File Like object pointer.
 
