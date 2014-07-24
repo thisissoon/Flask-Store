@@ -134,6 +134,9 @@ class LocalProvider(Provider):
         fp.save(path)
         fp.close()
 
+        # Update the filename - it may have changes
+        self.filename = filename
+
     def open(self):
         """ Opens the file and returns the file handler.
 
