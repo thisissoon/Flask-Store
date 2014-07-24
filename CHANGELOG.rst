@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+0.0.4 - Alpha
+-------------
+* Changed: Minor change to API, Provider now requires file instance or path
+
 0.0.3.1 - Alpha
 ---------------
 * Hotfix: Bug in FlaskStoreType where settings a ``None`` value would break the
