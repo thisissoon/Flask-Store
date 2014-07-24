@@ -84,8 +84,8 @@ class FlaskStoreType(sqlalchemy.types.TypeDecorator):
         if not isinstance(value, FileStorage):
             return None
 
-        provider = Provider(location=self.location)
-        provider.save(value)
+        provider = Provider(value, location=self.location)
+        provider.save()
 
         return provider.relative_path
 

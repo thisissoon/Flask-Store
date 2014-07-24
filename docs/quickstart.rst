@@ -94,8 +94,8 @@ Storage) to save it.
 
     @app.route('/upload', methods=['POST', ])
     def upload():
-        provider = store.Provider()
-        provider.save(request.files.get('afile'))
+        provider = store.Provider(request.files.get('afile'))
+        provider.save()
 
         return provider.absolute_url
 

@@ -14,12 +14,13 @@ class TemporaryStore(LocalProvider):
     """
     """
 
-    def save(self, file):
+    def save(self):
         """
         """
 
+        fp = self.fp
         with tempfile.NamedTemporaryFile(delete=False) as temp:
-            temp.writelines(file)
+            temp.writelines(fp)
             temp.flush()
 
         return temp.name

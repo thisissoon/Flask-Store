@@ -12,8 +12,9 @@ import shortuuid
 import urlparse
 
 from flask import current_app
-from flask_store.utils import path_to_uri
+from flask_store.utils import is_path, path_to_uri
 from werkzeug.utils import secure_filename
+from werkzeug.datastructures import FileStorage
 
 
 class Provider(object):
@@ -25,17 +26,20 @@ class Provider(object):
     #: By default Providers do not require a route to be registered
     register_route = False
 
-    def __init__(self, path=None, location=None):
+    def __init__(self, fp, location=None):
         """ Constructor. When extending this class do not forget to call
         ``super``.
 
         This sets up base instance variables which can be used thoughtout the
         instance.
 
+        Arguments
+        ---------
+        fp : werkzeug.datastructures.FileStorage, str
+            A FileStorage instance or absolute path to a file
+
         Keyword Arguments
         -----------------
-        path : str, optional
-            The relative path to the file for the provider
         location : str, optional
             Relative location directory, this is appended to the
             ``STORE_PATH``, default None
@@ -44,11 +48,21 @@ class Provider(object):
         # The base store path for the provider
         self.store_path = self.join(current_app.config['STORE_PATH'])
 
+        # Save the fp - could be a FileStorage instance or a path
+        self.fp = fp
+
+        # Get the filename
+        if is_path(fp):
+            self.filename = os.path.basename(fp)
+        else:
+            if not isinstance(fp, FileStorage):
+                raise ValueError(
+                    'File pointer must be an instance of a '
+                    'werkzeug.datastructures.FileStorage')
+            self.filename = fp.filename
+
         # Save location
         self.location = location
-
-        if path:
-            path, self.filename = os.path.split(path)
 
         # Appends location to the store path
         if location:
