@@ -30,9 +30,8 @@ Example
         form.validate_on_submit()
 
         if not form.errors:
-            provider = store.Provider()
-            provider.save(request.files.get('foo'))
-
+            provider = store.Provider(request.files.get('foo'))
+            provider.save()
 
 """
 
@@ -108,18 +107,14 @@ class LocalProvider(Provider):
         path = self.join(self.store_path, filename)
         return os.path.exists(path)
 
-    def save(self, file):
+    def save(self):
         """ Save the file on the local file system. Simply builds the paths
         and calls :meth:`werkzeug.datastructures.FileStorage.save` on the
         file object.
-
-        Arguments
-        ---------
-        file : werkzeug.datastructures.FileStorage
-            The file uploaded by the user
         """
 
-        filename = self.safe_filename(file.filename)
+        fp = self.fp
+        filename = self.safe_filename(self.filename)
         path = self.join(self.store_path, filename)
         directory = os.path.dirname(path)
 
@@ -136,7 +131,22 @@ class LocalProvider(Provider):
             raise IOError('{0} is not a directory'.format(directory))
 
         # Save the file
-        file.save(path)
-        file.close()
+        fp.save(path)
+        fp.close()
 
-        self.filename = filename
+    def open(self):
+        """ Opens the file and returns the file handler.
+
+        Returns
+        -------
+        file
+            Open file handler
+        """
+
+        path = self.join(self.store_path, self.filename)
+        try:
+            fp = open(path, 'rb')
+        except IOError:
+            raise IOError('File does not exist: {0}'.format(self.absolute_path))
+
+        return fp

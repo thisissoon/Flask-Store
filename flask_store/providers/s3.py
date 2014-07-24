@@ -30,8 +30,8 @@ Example
         form = FooForm()
         form.validate_on_submit()
 
-        provider = Provider()
-        provider.save(form.files.get('foo'))
+        provider = Provider(form.files.get('foo'))
+        provider.save()
 """
 
 try:
@@ -47,6 +47,7 @@ try:
 except ImportError:
     GEVENT_INSTALLED = False
 
+import io
 import mimetypes
 import os
 
@@ -149,36 +150,46 @@ class S3Provider(Provider):
 
         return key.exists()
 
-    def save(self, file):
+    def save(self):
         """ Takes the uploaded file and uploads it to S3.
 
         Note
         ----
         This is a blocking call and therefore will increase the time for your
         application to respond to the client and may cause request timeouts.
+        """
 
-        Arguments
-        ---------
-        file : werkzeug.datastructures.FileStorage
-            The file uploaded by the user
+        fp = self.fp
+        s3connection = self.connect()
+        bucket = self.bucket(s3connection)
+        filename = self.safe_filename(self.filename)
+        path = self.join(self.store_path, filename)
+        mimetype, encoding = mimetypes.guess_type(filename)
+
+        fp.seek(0)
+
+        key = bucket.new_key(path)
+        key.set_metadata('Content-Type', mimetype)
+        key.set_contents_from_file(fp)
+        key.set_acl('public-read')
+
+    def open(self):
+        """ Opens an S3 key and returns an oepn File Like object pointer.
+
+        Returns
+        -------
+        _io.BytesIO
+            In memory file data
         """
 
         s3connection = self.connect()
         bucket = self.bucket(s3connection)
-        filename = self.safe_filename(file.filename)
-        path = self.join(self.store_path, filename)
-        mimetype, encoding = mimetypes.guess_type(filename)
+        key = bucket.get_key(self.relative_path)
 
-        file.seek(0)
+        if not key:
+            raise IOError('File does not exist: {0}'.format(self.relative_path))
 
-        key = bucket.new_key(path)
-        key.set_metadata('Content-Type', mimetype)
-        key.set_contents_from_file(file)
-        key.set_acl('public-read')
-
-        file.close()
-
-        self.filename = filename
+        return io.BytesIO(key.read())  # In memory
 
 
 class S3GeventProvider(S3Provider):
@@ -196,7 +207,7 @@ class S3GeventProvider(S3Provider):
 
         super(S3GeventProvider, self).__init__(*args, **kwargs)
 
-    def save(self, file):
+    def save(self):
         """ Acts as a proxy to the actual save method in the parent class. The
         save method will be called in a ``greenlet`` so ``gevent`` must be
         installed.
@@ -207,21 +218,22 @@ class S3GeventProvider(S3Provider):
         being the temporary file.
         """
 
-        temp = TemporaryStore()
-        path = temp.save(file)
-        filename = self.safe_filename(file.filename)
+        fp = self.fp
+        temp = TemporaryStore(fp)
+        path = temp.save()
+        filename = self.safe_filename(fp.filename)
 
         @copy_current_request_context
         def _save():
-            storage = FileStorage(
+            self.fp = FileStorage(
                 stream=open(path, 'rb'),
                 filename=filename,
-                name=file.name,
-                content_type=file.content_type,
-                content_length=file.content_length,
-                headers=file.headers)
+                name=fp.name,
+                content_type=fp.content_type,
+                content_length=fp.content_length,
+                headers=fp.headers)
 
-            super(S3GeventProvider, self).save(storage)
+            super(S3GeventProvider, self).save()
 
             # Cleanup - Delete the temp file
             os.unlink(path)
