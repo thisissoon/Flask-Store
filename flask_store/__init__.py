@@ -127,7 +127,7 @@ class Store(object):
 
         if hasattr(self.Provider, 'REQUIRED_CONFIGURATION'):
             for name in self.Provider.REQUIRED_CONFIGURATION:
-                if not app.config.get(name):
+                if app.config.get(name, None) == None:
                     raise NotConfiguredError(
                         '{0} must be configured in your flask application '
                         'configuration'.format(name))

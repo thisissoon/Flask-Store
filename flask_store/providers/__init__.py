@@ -10,6 +10,9 @@ Base store functionality and classes.
 import os
 import shortuuid
 import urlparse
+import random
+import string
+
 
 from flask import current_app
 from flask_store.utils import is_path, path_to_uri
@@ -50,16 +53,14 @@ class Provider(object):
 
         # Save the fp - could be a FileStorage instance or a path
         self.fp = fp
-
         # Get the filename
         if is_path(fp):
             self.filename = os.path.basename(fp)
+
+        elif isinstance(fp, FileStorage):
+                self.filename = fp.filename
         else:
-            if not isinstance(fp, FileStorage):
-                raise ValueError(
-                    'File pointer must be an instance of a '
-                    'werkzeug.datastructures.FileStorage')
-            self.filename = fp.filename
+            self.filename = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(12))
 
         # Save location
         self.location = location
