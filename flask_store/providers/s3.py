@@ -22,6 +22,12 @@ Example
     app.config['STORE_PROVIDER'] = 'flask_store.providers.s3.S3Provider'
     app.config['STORE_S3_ACCESS_KEY'] = 'foo'
     app.confog['STORE_S3_SECRET_KEY'] = 'bar'
+    app.confog['STORE_S3_REDUCED_REDUNDANCY'] = False
+    app.confog['STORE_S3_HEADERS'] = {
+                                        'Expires': 'Thu, 15 Apr 2010 20:00:00 GMT',
+                                        'Cache-Control': 'max-age=86400',
+                                    }
+
 
     store = Store(app)
 
@@ -50,7 +56,7 @@ except ImportError:
 import io
 import mimetypes
 import os
-
+from StringIO import StringIO
 from flask import copy_current_request_context, current_app
 from flask_store.exceptions import NotConfiguredError
 from flask_store.providers import Provider
@@ -68,7 +74,16 @@ class S3Provider(Provider):
         'STORE_S3_ACCESS_KEY',
         'STORE_S3_SECRET_KEY',
         'STORE_S3_BUCKET',
-        'STORE_S3_REGION']
+        'STORE_S3_REGION',
+        'STORE_S3_REDUCED_REDUNDANCY',
+        'STORE_S3_HEADERS']
+    policy = 'public-read'
+
+    _bucket = None
+
+    def __init__(self, *args, **kwargs):
+        super (S3Provider, self).__init__(*args, **kwargs)
+        self._bucket = current_app.config.get('STORE_S3_BUCKET')
 
     @staticmethod
     def app_defaults(app):
@@ -98,19 +113,32 @@ class S3Provider(Provider):
         """
 
         if not hasattr(self, '_s3connection'):
-            s3connection = boto.s3.connect_to_region(
-                current_app.config['STORE_S3_REGION'],
-                aws_access_key_id=current_app.config['STORE_S3_ACCESS_KEY'],
-                aws_secret_access_key=current_app.config['STORE_S3_SECRET_KEY'])
-            setattr(self, '_s3connection', s3connection)
+            try:
+                s3connection = boto.s3.connect_to_region(
+                    current_app.config['STORE_S3_REGION'],
+                    aws_access_key_id=current_app.config['STORE_S3_ACCESS_KEY'],
+                    aws_secret_access_key=current_app.config['STORE_S3_SECRET_KEY'])
+                setattr(self, '_s3connection', s3connection)
+            except S3ResponseError:
+                raise
         return getattr(self, '_s3connection')
 
-    def bucket(self, s3connection):
-        """ Returns an S3 bucket instance
-        """
 
-        return s3connection.get_bucket(
-            current_app.config.get('STORE_S3_BUCKET'))
+
+    @property
+    def bucket(self):
+        """make bucket a property so user can change the bucket on runtime"""
+        return self._bucket
+    @bucket.setter
+    def bucket(self, value):
+        self._bucket = value
+
+
+
+    def get_bucket(self, s3connection):
+        """ Returns an S3 bucket instance"""
+
+        return s3connection.get_bucket(self.bucket)
 
     def join(self, *parts):
         """ Joins paths into a url.
@@ -143,7 +171,7 @@ class S3Provider(Provider):
         """
 
         s3connection = self.connect()
-        bucket = self.bucket(s3connection)
+        bucket = self.get_bucket(s3connection)
         path = self.join(self.store_path, filename)
 
         key = boto.s3.key.Key(name=path, bucket=bucket)
@@ -161,7 +189,7 @@ class S3Provider(Provider):
 
         fp = self.fp
         s3connection = self.connect()
-        bucket = self.bucket(s3connection)
+        bucket = self.get_bucket(s3connection)
         filename = self.safe_filename(self.filename)
         path = self.join(self.store_path, filename)
         mimetype, encoding = mimetypes.guess_type(filename)
@@ -170,14 +198,20 @@ class S3Provider(Provider):
 
         key = bucket.new_key(path)
         key.set_metadata('Content-Type', mimetype)
-        key.set_contents_from_file(fp)
-        key.set_acl('public-read')
+        for header, value in current_app.config['STORE_S3_HEADERS'][0].iteritems():
+            key.set_metadata(header, value)
+        if isinstance(fp,StringIO):
+            key.set_contents_from_string(fp.getvalue(), reduced_redundancy=current_app.config['STORE_S3_REDUCED_REDUNDANCY'])
+        else:
+            key.set_contents_from_file(fp, reduced_redundancy=current_app.config['STORE_S3_REDUCED_REDUNDANCY'])
+
+        key.set_acl(self.policy)
 
         # Update the filename - it may have changes
         self.filename = filename
 
     def open(self):
-        """ Opens an S3 key and returns an oepn File Like object pointer.
+        """ Opens an S3 key and returns an open File Like object pointer.
 
         Returns
         -------
@@ -186,13 +220,14 @@ class S3Provider(Provider):
         """
 
         s3connection = self.connect()
-        bucket = self.bucket(s3connection)
+        bucket = self.get_bucket(s3connection)
         key = bucket.get_key(self.relative_path)
 
         if not key:
             raise IOError('File does not exist: {0}'.format(self.relative_path))
 
         return io.BytesIO(key.read())  # In memory
+
 
 
 class S3GeventProvider(S3Provider):

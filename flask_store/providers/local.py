@@ -37,6 +37,7 @@ Example
 
 import errno
 import os
+from StringIO import StringIO
 
 from flask_store.providers import Provider
 
@@ -130,9 +131,14 @@ class LocalProvider(Provider):
         if not os.path.isdir(directory):
             raise IOError('{0} is not a directory'.format(directory))
 
-        # Save the file
-        fp.save(path)
-        fp.close()
+        if isinstance(fp,StringIO):
+            output = open(path, "wb")
+            output.write(fp.getvalue())
+            output.close()
+        else:
+            # Save the file
+            fp.save(path)
+            fp.close()
 
         # Update the filename - it may have changes
         self.filename = filename
@@ -153,3 +159,4 @@ class LocalProvider(Provider):
             raise IOError('File does not exist: {0}'.format(self.absolute_path))
 
         return fp
+
