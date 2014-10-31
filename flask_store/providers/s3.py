@@ -79,6 +79,12 @@ class S3Provider(Provider):
         'STORE_S3_HEADERS']
     policy = 'public-read'
 
+    _bucket = None
+
+    def __init__(self, *args, **kwargs):
+        super (S3Provider, self).__init__(*args, **kwargs)
+        self._bucket = current_app.config.get('STORE_S3_BUCKET')
+
     @staticmethod
     def app_defaults(app):
         """ Sets sensible application configuration settings for this
@@ -117,12 +123,22 @@ class S3Provider(Provider):
                 raise
         return getattr(self, '_s3connection')
 
-    def bucket(self, s3connection):
-        """ Returns an S3 bucket instance
-        """
 
-        return s3connection.get_bucket(
-            current_app.config.get('STORE_S3_BUCKET'))
+
+    @property
+    def bucket(self):
+        """make bucket a property so user can change the bucket on runtime"""
+        return self._bucket
+    @bucket.setter
+    def bucket(self, value):
+        self._bucket = value
+
+
+
+    def get_bucket(self, s3connection):
+        """ Returns an S3 bucket instance"""
+
+        return s3connection.get_bucket(self.bucket)
 
     def join(self, *parts):
         """ Joins paths into a url.
@@ -155,7 +171,7 @@ class S3Provider(Provider):
         """
 
         s3connection = self.connect()
-        bucket = self.bucket(s3connection)
+        bucket = self.get_bucket(s3connection)
         path = self.join(self.store_path, filename)
 
         key = boto.s3.key.Key(name=path, bucket=bucket)
@@ -173,7 +189,7 @@ class S3Provider(Provider):
 
         fp = self.fp
         s3connection = self.connect()
-        bucket = self.bucket(s3connection)
+        bucket = self.get_bucket(s3connection)
         filename = self.safe_filename(self.filename)
         path = self.join(self.store_path, filename)
         mimetype, encoding = mimetypes.guess_type(filename)
@@ -204,13 +220,14 @@ class S3Provider(Provider):
         """
 
         s3connection = self.connect()
-        bucket = self.bucket(s3connection)
+        bucket = self.get_bucket(s3connection)
         key = bucket.get_key(self.relative_path)
 
         if not key:
             raise IOError('File does not exist: {0}'.format(self.relative_path))
 
         return io.BytesIO(key.read())  # In memory
+
 
 
 class S3GeventProvider(S3Provider):
