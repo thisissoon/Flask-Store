@@ -47,10 +47,12 @@ try:
 except ImportError:
     GEVENT_INSTALLED = False
 
+# Standard Libs
 import io
 import mimetypes
 import os
 
+# Third Party Libs
 from flask import copy_current_request_context, current_app
 from flask_store.exceptions import NotConfiguredError
 from flask_store.providers import Provider
@@ -87,6 +89,10 @@ class S3Provider(Provider):
         # For S3 the STORE_PATH makes up part of the key and therefore
         # doubles up as the STORE_URL_PREFIX
         app.config.setdefault('STORE_URL_PREFIX', app.config['STORE_PATH'])
+
+        # Default ACL
+        # http://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#canned-acl
+        app.config.setdefault('STORE_S3_ACL', 'private')
 
         if not BOTO_INSTALLED:
             raise ImportError(
@@ -171,7 +177,7 @@ class S3Provider(Provider):
         key = bucket.new_key(path)
         key.set_metadata('Content-Type', mimetype)
         key.set_contents_from_file(fp)
-        key.set_acl('public-read')
+        key.set_acl(current_app.config.get('STORE_S3_ACL'))
 
         # Update the filename - it may have changes
         self.filename = filename
