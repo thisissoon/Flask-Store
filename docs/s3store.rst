@@ -61,8 +61,12 @@ The following configuration variables are availible to you.
 +----------------------------+---------------------------------------+
 | Your AWS access secret key                                         |
 +--------------------------------------------------------------------+
+| ``STORE_S3_ACL``           | ``public-read``                       |
++----------------------------+---------------------------------------+
+| ACL to set uploaded files, defaults to ``private``, see S3_ACL_    |
++----------------------------+---------------------------------------+
 
-|
+.. _S3_ACL: http://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#canned-acl
 
 S3 Gevent Store
 ===============
