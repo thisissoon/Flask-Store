@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+0.0.4.2 - Alpha
+---------------
+* Minor Feature: New ``STORE_S3_ACL`` optional setting. S3 Uploads will auto be set to ``private``
+  unless ``STORE_S3_ACL`` specifies a different ACL.
+
 0.0.4.1 - Alpha
 ---------------
 * Hotfix: Filename changed when saved is set on the provider instance
