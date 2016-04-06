@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+0.0.4.3 - Alpha
+---------------
+* Bugfix: Python3 str error in setup
+
 0.0.4.2 - Alpha
 ---------------
 * Minor Feature: New ``STORE_S3_ACL`` optional setting. S3 Uploads will auto be set to ``private``
