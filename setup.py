@@ -59,7 +59,7 @@ def read_requirements(filename):
                 line = line.strip()
                 if not line or line.startswith(b'#') or line == '':
                     continue
-                requirements.append(line)
+                requirements.append(line.decode('utf-8'))
     except IOError:
         warnings.warn('{0} was not found'.format(filename))
 

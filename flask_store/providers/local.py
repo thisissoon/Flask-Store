@@ -62,7 +62,7 @@ class LocalProvider(Provider):
 
         # For Local file storage the default store path is the current
         # working directory
-        app.config.setdefault('STORE_PATH', os.getcwdu())
+        app.config.setdefault('STORE_PATH', os.getcwd())
 
         # Default URL Prefix
         app.config.setdefault('STORE_URL_PREFIX', '/uploads')
