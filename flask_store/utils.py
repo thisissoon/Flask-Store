@@ -6,6 +6,7 @@ flask_store.utils
 """
 
 import os
+from past.builtins import basestring
 
 
 def path_to_uri(path):
