@@ -57,7 +57,7 @@ def read_requirements(filename):
         with open(filename, 'rb') as f:
             for line in f.readlines():
                 line = line.strip()
-                if not line or line.startswith('#') or line == '':
+                if not line or line.startswith(b'#') or line == '':
                     continue
                 requirements.append(line)
     except IOError:
