@@ -11,7 +11,11 @@ the following providers out of the box:
 * Amazon Simple File Storage (requires ``boto`` to be installed)
 """
 
-import urlparse
+# Python 2/3 imports
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
 
 from flask import current_app, send_from_directory
 from flask_store.exceptions import NotConfiguredError
