@@ -59,7 +59,7 @@ def read_requirements(filename):
                 line = line.strip()
                 if not line or line.startswith(b'#') or line == '':
                     continue
-                requirements.append(line)
+                requirements.append(line.decode('utf-8'))
     except IOError:
         warnings.warn('{0} was not found'.format(filename))
 
@@ -135,6 +135,8 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.5',
         'Topic :: Software Development',
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content'],
