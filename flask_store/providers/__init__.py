@@ -15,6 +15,10 @@ except ImportError:
 
 import os
 import shortuuid
+try:
+    import urlparse
+except ImportError:
+    import urllib.parse as urlparse
 
 from flask import current_app
 from flask_store.utils import is_path, path_to_uri
