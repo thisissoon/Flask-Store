@@ -7,6 +7,12 @@ flask_store.providers
 Base store functionality and classes.
 """
 
+# Python 2/3 imports
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
+
 import os
 import shortuuid
 try:
