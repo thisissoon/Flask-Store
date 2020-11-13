@@ -14,8 +14,11 @@ the following providers out of the box:
 # Python 2/3 imports
 try:
     from urllib.parse import urlparse
+    from urllib.parse import urljoin
 except ImportError:
+    from urlparse.urlparse import urljoin
     from urlparse import urlparse
+
 
 from flask import current_app, send_from_directory
 from flask_store.exceptions import NotConfiguredError
@@ -23,12 +26,12 @@ from importlib import import_module
 from werkzeug.local import LocalProxy
 
 
-DEFAULT_PROVIDER = 'flask_store.providers.local.LocalProvider'
+DEFAULT_PROVIDER = "flask_store.providers.local.LocalProvider"
 Provider = LocalProxy(lambda: store_provider())
 
 
 def store_provider():
-    """ Returns the default provider class as defined in the application
+    """Returns the default provider class as defined in the application
     configuration.
 
     Returns
@@ -37,13 +40,12 @@ def store_provider():
         The provider class
     """
 
-    store = current_app.extensions['store']
+    store = current_app.extensions["store"]
     return store.store.Provider
 
 
 class StoreState(object):
-    """ Stores the state of Flask-Store from application init.
-    """
+    """Stores the state of Flask-Store from application init."""
 
     def __init__(self, store, app):
         self.store = store
@@ -51,7 +53,7 @@ class StoreState(object):
 
 
 class Store(object):
-    """ Flask-Store integration into Flask applications. Flask-Store can
+    """Flask-Store integration into Flask applications. Flask-Store can
     be integrated in two different ways depending on how you have setup your
     Flask application.
 
@@ -71,7 +73,7 @@ class Store(object):
     """
 
     def __init__(self, app=None):
-        """ Constructor. Basically acts as a proxy to
+        """Constructor. Basically acts as a proxy to
         :meth:`flask_store.Store.init_app`.
 
         Key Arguments
@@ -84,7 +86,7 @@ class Store(object):
             self.init_app(app)
 
     def init_app(self, app):
-        """ Sets up application default confugration options and sets a
+        """Sets up application default confugration options and sets a
         ``Provider`` property which can be used to access the default
         provider class which handles the saving of files.
 
@@ -94,12 +96,12 @@ class Store(object):
             Flask application instance
         """
 
-        app.config.setdefault('STORE_DOMAIN', None)
-        app.config.setdefault('STORE_PROVIDER', DEFAULT_PROVIDER)
+        app.config.setdefault("STORE_DOMAIN", None)
+        app.config.setdefault("STORE_PROVIDER", DEFAULT_PROVIDER)
 
-        if not hasattr(app, 'extensions'):
+        if not hasattr(app, "extensions"):
             app.extensions = {}
-        app.extensions['store'] = StoreState(self, app)
+        app.extensions["store"] = StoreState(self, app)
 
         # Set the provider class
         self.Provider = self.provider(app)
@@ -114,7 +116,7 @@ class Store(object):
         self.register_route(app)
 
     def check_config(self, app):
-        """ Checks the required application configuration variables are set
+        """Checks the required application configuration variables are set
         in the flask application.
 
         Arguments
@@ -129,15 +131,16 @@ class Store(object):
             Store.
         """
 
-        if hasattr(self.Provider, 'REQUIRED_CONFIGURATION'):
+        if hasattr(self.Provider, "REQUIRED_CONFIGURATION"):
             for name in self.Provider.REQUIRED_CONFIGURATION:
                 if not app.config.get(name):
                     raise NotConfiguredError(
-                        '{0} must be configured in your flask application '
-                        'configuration'.format(name))
+                        "{0} must be configured in your flask application "
+                        "configuration".format(name)
+                    )
 
     def provider(self, app):
-        """ Fetches the provider class as defined by the application
+        """Fetches the provider class as defined by the application
         configuration.
 
         Arguments
@@ -156,23 +159,21 @@ class Store(object):
             The provider class
         """
 
-        if not hasattr(self, '_provider'):
-            parts = app.config['STORE_PROVIDER'].split('.')
+        if not hasattr(self, "_provider"):
+            parts = app.config["STORE_PROVIDER"].split(".")
             klass = parts.pop()
-            path = '.'.join(parts)
+            path = ".".join(parts)
 
             module = import_module(path)
             if not hasattr(module, klass):
-                raise ImportError('{0} provider not found at {1}'.format(
-                    klass,
-                    path))
+                raise ImportError("{0} provider not found at {1}".format(klass, path))
 
             self._provider = getattr(module, klass)
 
-        return getattr(self, '_provider')
+        return getattr(self, "_provider")
 
     def set_provider_defaults(self, app):
-        """ If the provider has a ``app_defaults`` static method then this
+        """If the provider has a ``app_defaults`` static method then this
         simply calls that method. This will set sensible application
         configuration options for the provider.
 
@@ -182,11 +183,11 @@ class Store(object):
             Flask application instance
         """
 
-        if hasattr(self.Provider, 'app_defaults'):
+        if hasattr(self.Provider, "app_defaults"):
             self.Provider.app_defaults(app)
 
     def register_route(self, app):
-        """ Registers a default route for serving uploaded assets via
+        """Registers a default route for serving uploaded assets via
         Flask-Store, this is based on the absolute and relative paths
         defined in the app configuration.
 
@@ -197,11 +198,11 @@ class Store(object):
         """
 
         def serve(filename):
-            return send_from_directory(app.config['STORE_PATH'], filename)
+            return send_from_directory(app.config["STORE_PATH"], filename)
 
         # Only do this if the Provider says so
         if self.Provider.register_route:
-            url = urlparse.urljoin(
-                app.config['STORE_URL_PREFIX'].lstrip('/') + '/',
-                '<path:filename>')
-            app.add_url_rule('/' + url, 'flask.store.file', serve)
+            url = urljoin(
+                app.config["STORE_URL_PREFIX"].lstrip("/") + "/", "<path:filename>"
+            )
+            app.add_url_rule("/" + url, "flask.store.file", serve)
