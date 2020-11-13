@@ -20,7 +20,7 @@ except ImportError:
 from flask import current_app, send_from_directory
 from flask_store.exceptions import NotConfiguredError
 from importlib import import_module
-from werkzeug import LocalProxy
+from werkzeug.local import LocalProxy
 
 
 DEFAULT_PROVIDER = 'flask_store.providers.local.LocalProvider'
