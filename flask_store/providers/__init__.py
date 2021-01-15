@@ -7,11 +7,7 @@ flask_store.providers
 Base store functionality and classes.
 """
 
-# Python 2/3 imports
-try:
-    from urllib.parse import urlparse
-except ImportError:
-    from urlparse import urlparse
+from urllib.parse import urljoin
 
 import os
 import shortuuid
@@ -23,7 +19,7 @@ from werkzeug.datastructures import FileStorage
 
 
 class Provider(object):
-    """ Base provider class all storage providers should inherit from. This
+    """Base provider class all storage providers should inherit from. This
     class provides some of the base functionality for all providers. Override
     as required.
     """
@@ -32,7 +28,7 @@ class Provider(object):
     register_route = False
 
     def __init__(self, fp, location=None):
-        """ Constructor. When extending this class do not forget to call
+        """Constructor. When extending this class do not forget to call
         ``super``.
 
         This sets up base instance variables which can be used thoughtout the
@@ -51,7 +47,7 @@ class Provider(object):
         """
 
         # The base store path for the provider
-        self.store_path = self.join(current_app.config['STORE_PATH'])
+        self.store_path = self.join(current_app.config["STORE_PATH"])
 
         # Save the fp - could be a FileStorage instance or a path
         self.fp = fp
@@ -62,8 +58,9 @@ class Provider(object):
         else:
             if not isinstance(fp, FileStorage):
                 raise ValueError(
-                    'File pointer must be an instance of a '
-                    'werkzeug.datastructures.FileStorage')
+                    "File pointer must be an instance of a "
+                    "werkzeug.datastructures.FileStorage"
+                )
             self.filename = fp.filename
 
         # Save location
@@ -75,7 +72,7 @@ class Provider(object):
 
     @property
     def relative_path(self):
-        """ Returns the relative path to the file, so minus the base
+        """Returns the relative path to the file, so minus the base
         path but still includes the location if it is set.
 
         Returns
@@ -93,7 +90,7 @@ class Provider(object):
 
     @property
     def absolute_path(self):
-        """ Returns the absollute file path to the file.
+        """Returns the absollute file path to the file.
 
         Returns
         -------
@@ -105,7 +102,7 @@ class Provider(object):
 
     @property
     def relative_url(self):
-        """ Returns the relative URL, basically minus the domain.
+        """Returns the relative URL, basically minus the domain.
 
         Returns
         -------
@@ -113,7 +110,9 @@ class Provider(object):
             Realtive URL to file
         """
 
-        parts = [current_app.config['STORE_URL_PREFIX'], ]
+        parts = [
+            current_app.config["STORE_URL_PREFIX"],
+        ]
         if self.location:
             parts.append(self.location)
         parts.append(self.filename)
@@ -122,7 +121,7 @@ class Provider(object):
 
     @property
     def absolute_url(self):
-        """ Absolute url contains a domain if it is set in the configuration,
+        """Absolute url contains a domain if it is set in the configuration,
         the url predix, location and the actual file name.
 
         Returns
@@ -131,17 +130,15 @@ class Provider(object):
             Full absolute URL to file
         """
 
-        if not current_app.config['STORE_DOMAIN']:
+        if not current_app.config["STORE_DOMAIN"]:
             path = self.relative_url
 
-        path = urlparse.urljoin(
-            current_app.config['STORE_DOMAIN'],
-            self.relative_url)
+        path = urljoin(current_app.config["STORE_DOMAIN"], self.relative_url)
 
         return path_to_uri(path)
 
     def safe_filename(self, filename):
-        """ If the file already exists the file will be renamed to contain a
+        """If the file already exists the file will be renamed to contain a
         short url safe UUID. This will avoid overwtites.
 
         Arguments
@@ -159,15 +156,12 @@ class Provider(object):
             dir_name, file_name = os.path.split(filename)
             file_root, file_ext = os.path.splitext(file_name)
             uuid = shortuuid.uuid()
-            filename = secure_filename('{0}_{1}{2}'.format(
-                file_root,
-                uuid,
-                file_ext))
+            filename = secure_filename("{0}_{1}{2}".format(file_root, uuid, file_ext))
 
         return filename
 
     def url_join(self, *parts):
-        """ Safe url part joining.
+        """Safe url part joining.
 
         Arguments
         ---------
@@ -180,16 +174,16 @@ class Provider(object):
             Joined url parts
         """
 
-        path = ''
+        path = ""
         for i, part in enumerate(parts):
             if i > 0:
-                part = part.lstrip('/')
-            path = urlparse.urljoin(path.rstrip('/') + '/', part.rstrip('/'))
+                part = part.lstrip("/")
+            path = urljoin(path.rstrip("/") + "/", part.rstrip("/"))
 
-        return path.lstrip('/')
+        return path.lstrip("/")
 
     def join(self, *args, **kwargs):
-        """ Each provider needs to implement how to safely join parts of a
+        """Each provider needs to implement how to safely join parts of a
         path together to result in a path which can be used for the provider.
 
         Raises
@@ -200,10 +194,12 @@ class Provider(object):
 
         raise NotImplementedError(
             'You must define a "join" method in the {0} provider.'.format(
-                self.__class__.__name__))
+                self.__class__.__name__
+            )
+        )
 
     def exists(self, *args, **kwargs):
-        """ Placeholder "exists" method. This should be overridden by custom
+        """Placeholder "exists" method. This should be overridden by custom
         providers and return a ``boolean`` depending on if the file exists
         of not for the provider.
 
@@ -215,10 +211,12 @@ class Provider(object):
 
         raise NotImplementedError(
             'You must define a "exists" method in the {0} provider.'.format(
-                self.__class__.__name__))
+                self.__class__.__name__
+            )
+        )
 
     def save(self, *args, **kwargs):
-        """ Placeholder "sabe" method. This should be overridden by custom
+        """Placeholder "sabe" method. This should be overridden by custom
         providers and save the file object to the provider.
 
         Raises
@@ -229,4 +227,6 @@ class Provider(object):
 
         raise NotImplementedError(
             'You must define a "save" method in the {0} provider.'.format(
-                self.__class__.__name__))
+                self.__class__.__name__
+            )
+        )
