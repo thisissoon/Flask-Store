@@ -54,12 +54,15 @@ def read_requirements(filename):
     requirements = []
 
     try:
-        with open(filename, 'rb') as f:
-            for line in f.readlines():
-                line = line.strip()
-                if not line or line.startswith(b'#') or line == '':
-                    continue
-                requirements.append(line.decode('utf-8'))
+        if os.path.isfile(filename):
+            with open(filename, 'rb') as f:
+                for line in f.readlines():
+                    line = line.strip()
+                    if not line or line.startswith(b'#') or line == '':
+                        continue
+                    requirements.append(line.decode('utf-8'))
+        else:
+            warnings.warn('{0} was not found'.format(filename))
     except IOError:
         warnings.warn('{0} was not found'.format(filename))
 
